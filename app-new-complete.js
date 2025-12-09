@@ -2151,3 +2151,93 @@ app.deleteGalleryImage = async function (imageUrl) {
         this.showToast('Error borrando imagen', 'error');
     }
 };
+
+// ===== PROFILE FIX V2 (Extensions & Better Debug) =====
+
+app.saveProfile = async function (event) {
+    event.preventDefault();
+    const form = event.target;
+    const user = AppState.currentUser;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Guardando...';
+
+    try {
+        console.log('🏁 Iniciando guardado de perfil...');
+
+        // 1. Recoger datos básicos
+        const selectedZones = Array.from(form.querySelectorAll('input[name="searchZones"]:checked'))
+            .map(cb => cb.value);
+
+        let updates = {
+            bio: form.bio.value,
+            age: form.age.value ? parseInt(form.age.value) : null,
+            search_zones: selectedZones
+        };
+
+        // 2. Subir avatar (CON EXTENSIÓN)
+        const avatarFile = form.avatarFile.files[0];
+        if (avatarFile) {
+            const ext = avatarFile.name.split('.').pop();
+            const path = `${user.id}/${Date.now()}_avatar.${ext}`;
+            console.log('Subiendo avatar a:', path);
+
+            try {
+                const avatarUrl = await SupabaseService.uploadFile('avatars', path, avatarFile);
+                updates.avatar_url = avatarUrl;
+                console.log('Avatar subido OK:', avatarUrl);
+            } catch (uploadErr) {
+                console.error('Error subida avatar:', uploadErr);
+                alert('Error subiendo avatar: ' + uploadErr.message);
+                throw uploadErr;
+            }
+        }
+
+        // 3. Subir galería (CON EXTENSIÓN)
+        const galleryFiles = form.galleryFiles.files;
+        if (galleryFiles.length > 0) {
+            let currentGallery = user.gallery || [];
+            if (typeof currentGallery === 'string') currentGallery = JSON.parse(currentGallery);
+
+            for (let i = 0; i < galleryFiles.length; i++) {
+                const file = galleryFiles[i];
+                const ext = file.name.split('.').pop();
+                const path = `${user.id}/${Date.now()}_gallery_${i}.${ext}`;
+
+                try {
+                    const url = await SupabaseService.uploadFile('gallery', path, file);
+                    currentGallery.push(url);
+                    console.log('Foto galería subida:', url);
+                } catch (galleryErr) {
+                    console.error('Error subida galería:', galleryErr);
+                    alert('Error subiendo foto de galería: ' + galleryErr.message);
+                    throw galleryErr; // Stop process
+                }
+            }
+            updates.gallery = currentGallery;
+        }
+
+        // 4. Actualizar usuario
+        console.log('Actualizando usuario en DB:', updates);
+        await SupabaseService.updateUser(user.id, updates);
+
+        // 5. Refrescar
+        const updatedProfile = await SupabaseService.getCurrentUser();
+        if (updatedProfile) {
+            updatedProfile.avatar = updatedProfile.avatar_url || updatedProfile.avatar;
+        }
+        AppState.currentUser = updatedProfile;
+
+        this.loadProfileView();
+        this.showToast('Perfil actualizado correctamente', 'success');
+
+    } catch (error) {
+        console.error('Error FATAL guardando perfil:', error);
+        // Alerta visible para que el usuario nos diga el error exacto
+        alert('ERROR: ' + (error.message || error));
+
+        this.showToast('Error: ' + (error.message || 'No se pudo guardar'), 'error');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Guardar Cambios';
+    }
+};
