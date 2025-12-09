@@ -44,14 +44,45 @@ const SupabaseService = {
 
         if (error) throw error;
 
-        // Obtener perfil completo
-        const { data: profile, error: profileError } = await supabaseClient
+        // Intentar obtener perfil completo
+        let { data: profile, error: profileError } = await supabaseClient
             .from('users')
             .select('*')
             .eq('id', data.user.id)
             .single();
 
-        if (profileError) throw profileError;
+        // Si no existe perfil (error PGRST116), lo creamos ahora "on-the-fly"
+        if (profileError && (profileError.code === 'PGRST116' || !profile)) {
+            console.warn('Usuario sin perfil encontrado. Creando perfil por defecto...');
+
+            // Usar metadatos guardados en auth si existen, o valores por defecto
+            const metadata = data.user.user_metadata || {};
+
+            const newProfile = {
+                id: data.user.id,
+                email: email,
+                username: metadata.username || email.split('@')[0], // Fallback al email si no hay username
+                role: metadata.role || 'BUSCADOR',                 // Fallback a BUSCADOR
+                created_at: new Date()
+            };
+
+            const { data: createdProfile, error: createError } = await supabaseClient
+                .from('users')
+                .insert([newProfile])
+                .select()
+                .single();
+
+            if (createError) {
+                console.error('Error crítico creando perfil de recuperación:', createError);
+                throw createError;
+            }
+
+            profile = createdProfile;
+        } else if (profileError) {
+            // Si es otro tipo de error, lanzarlo
+            throw profileError;
+        }
+
         return profile;
     },
 

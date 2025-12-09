@@ -4,18 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Encuentros Reales - Plataforma de Encuentros Adultos Auténticos</title>
-    <meta name="description"
-        content="Plataforma exclusiva para encuentros reales entre adultos verificados. Sistema de reputación, eventos organizados y comunidad auténtica.">
-    <link rel="stylesheet" href="styles.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
-        rel="stylesheet">
+    <title>Encuentros Reales - Plataforma de Encuentros Adultos</title>
+    <link rel="stylesheet" href="styles-new.css">
+    <link rel="stylesheet" href="components.css">
 </head>
 
 <body>
-    <!-- Splash Screen / Warning -->
+    <!-- Splash Screen -->
     <div id="splash-screen" class="splash-screen active">
         <div class="splash-content">
             <div class="splash-icon">🔞</div>
@@ -30,172 +25,252 @@
         </div>
     </div>
 
-    <!-- Main App Container -->
-    <div id="app-container" class="app-container">
-        <!-- Navigation -->
-        <nav class="navbar" id="navbar">
-            <div class="nav-content">
-                <div class="nav-brand">
-                    <span class="brand-icon">🔥</span>
-                    <span class="brand-text">Encuentros Reales</span>
+    <!-- App Container -->
+    <div id="app-container" class="app-container hidden">
+        <!-- Header -->
+        <header class="header">
+            <div class="user-greeting">
+                <div class="user-avatar" id="header-avatar">
+                    <span id="header-avatar-icon">👤</span>
                 </div>
-                <div class="nav-menu" id="nav-menu">
-                    <a href="#" class="nav-link active" data-view="feed">
-                        <span class="nav-icon">🏠</span>
-                        <span>Inicio</span>
-                    </a>
-                    <a href="#" class="nav-link" data-view="events">
-                        <span class="nav-icon">📅</span>
-                        <span>Mis Eventos</span>
-                    </a>
-                    <a href="#" class="nav-link" data-view="profile">
-                        <span class="nav-icon">👤</span>
-                        <span>Perfil</span>
-                    </a>
-                    <a href="#" class="nav-link admin-only hidden" data-view="admin">
-                        <span class="nav-icon">⚙️</span>
-                        <span>Admin</span>
-                    </a>
-                </div>
-                <div class="nav-actions">
-                    <button class="btn btn-secondary btn-small oferente-only hidden" onclick="app.showCreateEvent()">
-                        <span>➕</span> Crear Evento
-                    </button>
-                    <div class="user-menu">
-                        <button class="user-avatar" onclick="app.toggleUserMenu()">
-                            <img src="" alt="Avatar" id="user-avatar-img">
-                        </button>
-                        <div class="user-dropdown hidden" id="user-dropdown">
-                            <div class="user-info">
-                                <div class="user-name" id="user-name-display">Usuario</div>
-                                <div class="user-role" id="user-role-display">Rol</div>
-                            </div>
-                            <hr>
-                            <a href="#" onclick="app.logout()">Cerrar Sesión</a>
-                        </div>
-                    </div>
+                <div class="user-info">
+                    <h3 id="header-username">Usuario</h3>
+                    <p id="header-role">Rol</p>
                 </div>
             </div>
+            <div class="header-actions">
+                <button class="icon-btn hidden" id="header-create-event" onclick="app.showCreateEvent()"
+                    title="Crear Evento">➕</button>
+                <button class="icon-btn" id="notifications-btn" onclick="app.toggleNotifications()"
+                    title="Notificaciones">
+                    🔔
+                    <span id="notifications-badge" class="notification-badge hidden">0</span>
+                </button>
+                <button class="icon-btn" title="Configuración">⚙️</button>
+                <button class="icon-btn" onclick="app.logout()" title="Salir">🚪</button>
+            </div>
+        </header>
+
+        <!-- Panel de Notificaciones -->
+        <div id="notifications-panel" class="notifications-panel hidden">
+            <div class="notifications-header">
+                <h3>Notificaciones</h3>
+                <button class="btn btn-text btn-small" onclick="app.markAllNotificationsAsRead()">Marcar todas como
+                    leídas</button>
+            </div>
+            <div id="notifications-list" class="notifications-list">
+                <!-- Se llenará dinámicamente -->
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav class="nav-tabs">
+            <a href="#" class="nav-tab" data-view="explore" onclick="app.showView('explore')">
+                <span>🔍</span>
+                <span>Explorar</span>
+                <span class="badge" id="explore-count">0</span>
+            </a>
+            <a href="#" class="nav-tab" data-view="applications" onclick="app.showView('applications')">
+                <span>👥</span>
+                <span>Mis Postulaciones</span>
+                <span class="badge" id="applications-count">0</span>
+            </a>
+            <a href="#" class="nav-tab" data-view="favorites" onclick="app.showView('favorites')">
+                <span>❤️</span>
+                <span>Favoritos</span>
+            </a>
+            <a href="#" class="nav-tab" data-view="profile" onclick="app.showView('profile')">
+                <span>👤</span>
+                <span>Mi Perfil</span>
+            </a>
+            <a href="#" class="nav-tab hidden" data-view="admin" onclick="app.showView('admin')">
+                <span>⚙️</span>
+                <span>Admin</span>
+            </a>
         </nav>
 
         <!-- Main Content -->
-        <main class="main-content" id="main-content">
-            <!-- Feed View -->
-            <div id="view-feed" class="view active">
+        <main class="main-content">
+            <!-- Vista: Explorar Eventos -->
+            <div id="view-explore" class="view hidden">
                 <div class="page-header">
-                    <h1>Eventos Disponibles</h1>
-                    <div class="filters">
-                        <select class="filter-select" id="filter-gangbang-level">
-                            <option value="">Todos los niveles</option>
-                            <option value="TRADICIONAL">Gangbang Tradicional</option>
-                            <option value="SUMISO">Gangbang Sumiso</option>
-                            <option value="ESTRUCTURADO">Gangbang Estructurado</option>
-                        </select>
-                        <select class="filter-select" id="filter-zone">
-                            <option value="">Todas las zonas</option>
-                            <option value="norte">Zona Norte</option>
-                            <option value="sur">Zona Sur</option>
-                            <option value="este">Zona Este</option>
-                            <option value="oeste">Zona Oeste</option>
-                            <option value="centro">Centro</option>
-                        </select>
+                    <div>
+                        <h1>Eventos disponibles</h1>
+                        <p>Encuentra el encuentro perfecto para ti</p>
+                    </div>
+                    <button class="btn btn-secondary" onclick="app.toggleFilters()">
+                        <span>🔽</span>
+                        Filtros
+                    </button>
+                </div>
+
+                <!-- Filtros -->
+                <div id="filters-panel" class="filters-panel hidden">
+                    <div class="card">
+                        <h3 style="margin-bottom: var(--spacing-md);">Filtrar eventos</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-md);">
+                            <div class="form-group">
+                                <label>Tipo de evento</label>
+                                <select id="filter-type">
+                                    <option value="">Todos</option>
+                                    <option value="TRADICIONAL">Tradicional</option>
+                                    <option value="SUMISO">Sumiso</option>
+                                    <option value="ESTRUCTURADO">Estructurado</option>
+                                    <option value="LIBERAL">Liberal</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Zona</label>
+                                <select id="filter-zone">
+                                    <option value="">Todas</option>
+                                    <option value="norte">Norte</option>
+                                    <option value="sur">Sur</option>
+                                    <option value="este">Este</option>
+                                    <option value="oeste">Oeste</option>
+                                    <option value="centro">Centro</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Nivel de Gangbang</label>
+                            <select id="filter-gangbang">
+                                <option value="">Cualquiera</option>
+                                <option value="SUAVE">Suave</option>
+                                <option value="MEDIO">Medio</option>
+                                <option value="INTENSO">Intenso</option>
+                                <option value="EXTREMO">Extremo</option>
+                            </select>
+                        </div>
+                        <div
+                            style="display: flex; justify-content: flex-end; gap: var(--spacing-sm); margin-top: var(--spacing-md);">
+                            <button class="btn btn-secondary" onclick="app.toggleFilters()">Cancelar</button>
+                            <button class="btn btn-primary" onclick="app.applyFilters()">Aplicar Filtros</button>
+                        </div>
                     </div>
                 </div>
-                <div class="events-grid" id="events-grid">
-                    <!-- Events will be loaded here -->
+
+                <!-- Estadísticas del usuario -->
+                <div class="stats-grid" id="user-stats">
+                    <!-- Se llenarán dinámicamente -->
+                </div>
+
+                <!-- Lista de eventos -->
+                <div class="events-grid" id="events-list">
+                    <!-- Se llenarán dinámicamente -->
                 </div>
             </div>
 
-            <!-- My Events View -->
-            <div id="view-events" class="view">
-                <div class="page-header">
-                    <h1 class="oferente-text">Mis Eventos Creados</h1>
-                    <h1 class="buscador-text">Mis Postulaciones</h1>
-                </div>
-                <div class="my-events-container" id="my-events-container">
-                    <!-- User's events will be loaded here -->
+            <!-- Vista: Mis Postulaciones -->
+            <div id="view-applications" class="view hidden">
+                <h1>Mis postulaciones</h1>
+                <div class="events-grid" id="applications-list">
+                    <!-- Se llenarán dinámicamente -->
                 </div>
             </div>
 
-            <!-- Profile View -->
-            <div id="view-profile" class="view">
-                <div class="profile-container" id="profile-container">
-                    <!-- Profile will be loaded here -->
+            <!-- Vista: Favoritos -->
+            <div id="view-favorites" class="view hidden">
+                <h1>Favoritos</h1>
+                <div class="events-grid" id="favorites-list">
+                    <!-- Se llenarán dinámicamente -->
                 </div>
             </div>
 
-            <!-- Admin View -->
-            <div id="view-admin" class="view">
-                <div class="admin-container" id="admin-container">
-                    <!-- Admin panel will be loaded here -->
+            <!-- Vista: Mi Perfil -->
+            <div id="view-profile" class="view hidden">
+                <div id="profile-container">
+                    <!-- Se llenará dinámicamente -->
                 </div>
             </div>
+
+            <!-- Vista: Admin -->
+            <div id="view-admin" class="view hidden">
+                <div id="admin-container">
+                    <!-- Se llenará dinámicamente -->
+                </div>
+            </div>
+
+            <!-- Vista: Gestión de Evento (Oferente) -->
+            <div id="view-event-manage" class="view hidden">
+                <div id="event-manage-container">
+                    <!-- Se llenará dinámicamente -->
+                </div>
+            </div>
+            <!-- Vista: Panel de Admin -->
+            <div id="view-admin" class="view hidden"></div>
         </main>
     </div>
 
-    <!-- Auth Modal -->
-    <div id="auth-modal" class="modal">
-        <div class="modal-content modal-auth">
-            <h2 id="auth-title">Iniciar Sesión</h2>
-            <form id="auth-form">
+    <!-- Modal: Login/Registro -->
+    <div id="auth-modal" class="modal active">
+        <div class="modal-content auth-card">
+            <h2 id="auth-title" style="text-align: center; margin-bottom: var(--spacing-lg);">Iniciar Sesión</h2>
+
+            <form id="auth-form" onsubmit="app.handleAuth(event)">
                 <div class="form-group">
                     <label for="auth-email">Email</label>
-                    <input type="email" id="auth-email" required>
+                    <input type="email" id="auth-email" required placeholder="tu@email.com">
                 </div>
+
                 <div class="form-group">
                     <label for="auth-password">Contraseña</label>
-                    <input type="password" id="auth-password" required>
+                    <input type="password" id="auth-password" required placeholder="********">
                 </div>
-                <div class="form-group register-only hidden">
-                    <label for="auth-username">Nombre de Usuario (único)</label>
-                    <input type="text" id="auth-username" placeholder="Ej: Luna_Sensual">
+
+                <!-- Campos de Registro (ocultos por defecto) -->
+                <div id="name-group" class="form-group hidden">
+                    <label for="auth-username">Nombre de Usuario</label>
+                    <input type="text" id="auth-username" placeholder="Elige un alias único">
                 </div>
-                <div class="form-group register-only hidden">
-                    <label for="auth-age">Edad</label>
-                    <input type="number" id="auth-age" min="18" max="99" placeholder="18+">
-                </div>
-                <div class="form-group register-only hidden">
-                    <label for="auth-bio">Presentación</label>
-                    <textarea id="auth-bio" rows="3" placeholder="Cuéntanos sobre ti..."></textarea>
-                </div>
-                <div class="form-group register-only hidden">
-                    <label>Rol</label>
-                    <div class="role-selector">
-                        <label class="role-option">
-                            <input type="radio" name="role" value="OFERENTE">
-                            <span class="role-card">
-                                <span class="role-icon">👑</span>
-                                <span class="role-name">Oferente</span>
-                                <span class="role-desc">Creo y organizo eventos</span>
-                            </span>
+
+                <div id="role-group" class="form-group hidden">
+                    <label>¿Qué buscas?</label>
+                    <div class="radio-selector">
+                        <label class="radio-option">
+                            <input type="radio" name="role" id="auth-role" value="BUSCADOR" checked>
+                            <span>Buscador</span>
                         </label>
-                        <label class="role-option">
-                            <input type="radio" name="role" value="BUSCADOR">
-                            <span class="role-card">
-                                <span class="role-icon">🔍</span>
-                                <span class="role-name">Buscador</span>
-                                <span class="role-desc">Me postulo a eventos</span>
-                            </span>
+                        <label class="radio-option">
+                            <input type="radio" name="role" value="OFERENTE">
+                            <span>Oferente</span>
                         </label>
                     </div>
                 </div>
-                <button type="submit" class="btn btn-primary btn-block">Continuar</button>
+
+                <button type="submit" id="auth-submit" class="btn btn-primary btn-block btn-large">Entrar</button>
+
+                <p class="text-center" style="margin-top: var(--spacing-md);">
+                    <span id="auth-toggle-text">¿No tienes cuenta?</span>
+                    <a href="#" id="auth-toggle-link" onclick="app.toggleAuthMode()">Regístrate</a>
+                </p>
             </form>
-            <div class="auth-toggle">
-                <span id="auth-toggle-text">¿No tienes cuenta?</span>
-                <a href="#" id="auth-toggle-link" onclick="app.toggleAuthMode()">Regístrate</a>
+        </div>
+    </div>
+
+    <!-- Modal: Detalles de Evento -->
+    <div id="event-detail-modal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2 id="event-detail-title">Detalles del Evento</h2>
+                <button class="modal-close" onclick="app.closeEventDetail()">✕</button>
+            </div>
+            <div id="event-detail-content">
+                <!-- Se llenará dinámicamente -->
+            </div>
+            <div class="modal-footer" id="event-detail-actions">
+                <!-- Botones de acción dinámicos -->
             </div>
         </div>
     </div>
 
-    <!-- Create Event Modal -->
+    <!-- Modal: Crear Evento -->
     <div id="create-event-modal" class="modal">
-        <div class="modal-content modal-large">
+        <div class="modal-content" style="max-width: 800px;">
             <div class="modal-header">
                 <h2>Crear Nuevo Evento</h2>
                 <button class="modal-close" onclick="app.closeCreateEvent()">✕</button>
             </div>
-            <form id="create-event-form">
+            <form id="create-event-form" onsubmit="app.handleCreateEvent(event)">
                 <div class="form-group">
                     <label for="event-title">Título del Evento</label>
                     <input type="text" id="event-title" required>
@@ -204,7 +279,7 @@
                     <label for="event-description">Descripción</label>
                     <textarea id="event-description" rows="4" required></textarea>
                 </div>
-                <div class="form-row">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-md);">
                     <div class="form-group">
                         <label for="event-date">Fecha</label>
                         <input type="date" id="event-date" required>
@@ -216,34 +291,34 @@
                 </div>
                 <div class="form-group">
                     <label>Nivel del Gangbang</label>
-                    <div class="gangbang-level-selector">
-                        <label class="level-option">
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-md);">
+                        <label class="level-card">
                             <input type="radio" name="gangbang-level" value="TRADICIONAL" required>
-                            <span class="level-card">
-                                <span class="level-icon">🌊</span>
-                                <span class="level-name">Tradicional</span>
-                                <span class="level-desc">Fluido, espontáneo, sin turnos fijos</span>
-                            </span>
+                            <div class="level-content">
+                                <span>🌊</span>
+                                <strong>Tradicional</strong>
+                                <small>Fluido y espontáneo</small>
+                            </div>
                         </label>
-                        <label class="level-option">
+                        <label class="level-card">
                             <input type="radio" name="gangbang-level" value="SUMISO">
-                            <span class="level-card">
-                                <span class="level-icon">⚡</span>
-                                <span class="level-name">Sumiso (Potenciado)</span>
-                                <span class="level-desc">Rol sumiso, iniciativa de participantes</span>
-                            </span>
+                            <div class="level-content">
+                                <span>⚡</span>
+                                <strong>Sumiso</strong>
+                                <small>Rol sumiso potenciado</small>
+                            </div>
                         </label>
-                        <label class="level-option">
+                        <label class="level-card">
                             <input type="radio" name="gangbang-level" value="ESTRUCTURADO">
-                            <span class="level-card">
-                                <span class="level-icon">📋</span>
-                                <span class="level-name">Estructurado</span>
-                                <span class="level-desc">Orden, turnos y tiempos definidos</span>
-                            </span>
+                            <div class="level-content">
+                                <span>📋</span>
+                                <strong>Estructurado</strong>
+                                <small>Orden y turnos definidos</small>
+                            </div>
                         </label>
                     </div>
                 </div>
-                <div class="form-row">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-md);">
                     <div class="form-group">
                         <label for="event-capacity">Capacidad Máxima</label>
                         <input type="number" id="event-capacity" min="2" max="50" required>
@@ -274,31 +349,90 @@
         </div>
     </div>
 
-    <!-- Event Detail Modal -->
-    <div id="event-detail-modal" class="modal">
-        <div class="modal-content modal-large">
+    <!-- Modal: Valorar Participantes -->
+    <div id="rate-modal" class="modal">
+        <div class="modal-content">
             <div class="modal-header">
-                <h2 id="event-detail-title">Detalles del Evento</h2>
-                <button class="modal-close" onclick="app.closeEventDetail()">✕</button>
+                <h2>Valorar participantes</h2>
+                <button class="modal-close" onclick="app.closeRateModal()">✕</button>
             </div>
-            <div id="event-detail-content">
-                <!-- Event details will be loaded here -->
+            <div id="rate-content">
+                <!-- Se llenará dinámicamente -->
             </div>
         </div>
     </div>
 
-    <!-- Toast Notifications -->
-    
-    <!-- Image Viewer Modal -->
+
+
+    <!-- Modal: Editar Perfil -->
+    <div id="edit-profile-modal" class="modal">
+        <div class="modal-content">
+            <h2 style="margin-bottom: var(--spacing-md);">Editar Perfil</h2>
+            <form id="edit-profile-form" onsubmit="app.handleProfileEdit(event)">
+                <div class="form-group" style="text-align: center;">
+                    <label class="form-label">Avatar</label>
+                    <img id="edit-avatar-preview" src=""
+                        style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; margin-bottom: 10px;">
+                    <br>
+                    <button type="button" class="btn btn-secondary btn-small"
+                        onclick="document.getElementById('avatar-upload').click()">Cambiar Foto</button>
+                    <input type="file" id="avatar-upload" hidden accept="image/*"
+                        onchange="app.handleImageUpload('avatar', this)">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Bio / Sobre mí</label>
+                    <textarea class="form-input" name="bio" rows="3"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Zonas de Interés</label>
+                    <div class="checkbox-group" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <label><input type="checkbox" name="zones" value="norte"> Norte</label>
+                        <label><input type="checkbox" name="zones" value="sur"> Sur</label>
+                        <label><input type="checkbox" name="zones" value="este"> Este</label>
+                        <label><input type="checkbox" name="zones" value="oeste"> Oeste</label>
+                        <label><input type="checkbox" name="zones" value="centro"> Centro</label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Galería de Fotos (Máx 4)</label>
+                    <div id="gallery-preview" style="display: flex; gap: 5px; margin-bottom: 10px;"></div>
+                    <button type="button" class="btn btn-secondary btn-small"
+                        onclick="document.getElementById('gallery-upload').click()">Añadir Foto a Galería</button>
+                    <input type="file" id="gallery-upload" hidden accept="image/*"
+                        onchange="app.handleImageUpload('gallery', this)">
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-text" onclick="app.toggleProfileEdit()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Imagen ampliada -->
     <div id="image-modal" class="modal" onclick="app.closeImageModal()">
-        <div class="modal-content" style="max-width: 90vw; max-height: 90vh; background: transparent; box-shadow: none; padding: 0;">
-            <img id="image-modal-img" src="" style="max-width: 100%; max-height: 90vh; object-fit: contain; border-radius: var(--border-radius-lg);">
+        <div class="modal-content"
+            style="max-width: 90vw; max-height: 90vh; background: transparent; box-shadow: none; padding: 0;">
+            <img id="image-modal-img" src=""
+                style="max-width: 100%; max-height: 90vh; object-fit: contain; border-radius: var(--border-radius-lg);">
         </div>
     </div>
-<div id="toast-container" class="toast-container"></div>
 
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+    <script src="supabase-service.js"></script>
+
+    <!-- App Scripts (Legacy DataService can be kept as fallback or removed later) -->
     <script src="data.js"></script>
-    <script src="app.js"></script>
+    <script src="app-new-complete.js"></script>
 </body>
 
 </html>
