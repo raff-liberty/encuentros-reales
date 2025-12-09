@@ -1663,7 +1663,13 @@ const app = {
         const date = document.getElementById('event-date').value;
         const time = document.getElementById('event-time').value;
         const location = document.getElementById('event-location').value;
-        const type = document.querySelector('input[name="eventType"]:checked').value;
+
+        let type = 'TRADICIONAL'; // Valor por defecto
+        const typeInput = document.querySelector('input[name="gangbang-level"]:checked');
+        if (typeInput) {
+            type = typeInput.value;
+        }
+
         const capacity = document.getElementById('event-capacity').value;
         const zone = document.getElementById('event-zone').value;
         const description = document.getElementById('event-description').value;
