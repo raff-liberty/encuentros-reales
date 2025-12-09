@@ -175,8 +175,7 @@ const SupabaseService = {
                 *,
                 organizer:users (
                     username,
-                    avatar_url,
-                    rating
+                    avatar_url
                 )
             `)
             .eq('status', 'ACTIVO') // Solo eventos activos
@@ -214,8 +213,7 @@ const SupabaseService = {
                 *,
                 organizer:users (
                     username,
-                    avatar_url,
-                    rating
+                    avatar_url
                 )
             `)
             .eq('id', eventId)

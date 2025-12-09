@@ -1585,9 +1585,6 @@ const app = {
                              style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">
                         <div>
                             <strong>${organizer.username}</strong>
-                            <div style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">
-                                ⭐ ${(organizer.rating || 0).toFixed(1)}
-                            </div>
                         </div>
                     </div>
                 </div>
