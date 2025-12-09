@@ -501,7 +501,7 @@ const app = {
             <div class="stat-card">
                 <div class="stat-icon">⭐</div>
                 <div class="stat-info">
-                    <h3>${user.rating.toFixed(1)}</h3>
+                    <h3>${(user.rating || 0).toFixed(1)}</h3>
                     <p>Tu reputación</p>
                 </div>
             </div>
@@ -1692,7 +1692,7 @@ const app = {
                                         <div>
                                             <strong>${user.username}</strong>
                                             <div style="color: var(--color-text-secondary); font-size: var(--font-size-sm);">
-                                                ⭐ ${user.rating.toFixed(1)} (${user.reviewsCount || 0} valoraciones)
+                                                ⭐ ${(user.rating || 0).toFixed(1)} (${user.reviewsCount || 0} valoraciones)
                                             </div>
                                             ${user.bio ? `
                                                 <p style="color: var(--color-text-secondary); font-size: var(--font-size-sm); margin-top: 4px;">
@@ -1854,7 +1854,7 @@ const app = {
                         <div style="display: flex; flex-direction: column; gap: var(--spacing-md);">
                             <div>
                                 <div style="font-size: var(--font-size-2xl); font-weight: 700; color: var(--color-accent);">
-                                    ⭐ ${user.rating.toFixed(1)}
+                                    ⭐ ${(user.rating || 0).toFixed(1)}
                                 </div>
                                 <div style="color: var(--color-text-tertiary); font-size: var(--font-size-sm);">
                                     Valoración
