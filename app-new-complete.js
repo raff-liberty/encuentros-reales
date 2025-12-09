@@ -984,7 +984,7 @@ const app = {
                         <div style="display: flex; flex-direction: column; gap: var(--spacing-md);">
                             <div>
                                 <div style="font-size: var(--font-size-2xl); font-weight: 700; color: var(--color-accent);">
-                                    ⭐ ${user.rating.toFixed(1)}
+                                    ⭐ ${(user.rating || 0).toFixed(1)}
                                 </div>
                                 <div style="color: var(--color-text-tertiary); font-size: var(--font-size-sm);">
                                     Valoración
