@@ -2241,3 +2241,120 @@ app.saveProfile = async function (event) {
         submitBtn.textContent = 'Guardar Cambios';
     }
 };
+
+// ===== PROFILE FIX V3 (Gallery Preview) =====
+
+// Sobrescribimos toggleProfileEdit para añadir el contenedor de preview y el evento onchange
+app.toggleProfileEdit = function () {
+    const user = AppState.currentUser;
+    const currentAvatar = user.avatar || user.avatar_url;
+    const container = document.getElementById('profile-container');
+    const zones = ['norte', 'sur', 'este', 'oeste', 'centro'];
+
+    container.innerHTML = `
+        <div class="card" style="max-width: 600px; margin: 0 auto;">
+            <h2 style="margin-bottom: 20px;">✏️ Editar Perfil</h2>
+            <form id="profile-edit-form" onsubmit="app.saveProfile(event)">
+                
+                <!-- AVATAR -->
+                <div class="form-group" style="margin-bottom: 20px; text-align: center;">
+                    <label style="display: block; margin-bottom: 10px; font-weight: bold;">Foto de Perfil</label>
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 15px;">
+                        <img id="avatar-preview" 
+                             src="${currentAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`}" 
+                             style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid var(--color-primary); box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                        
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <label class="btn btn-secondary" style="cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                                📷 Cambiar
+                                <input type="file" name="avatarFile" accept="image/*" style="display: none;" 
+                                       onchange="app.previewAvatar(this)">
+                            </label>
+                            ${currentAvatar ? `<button type="button" class="btn" style="background: var(--color-error); color: white;" onclick="app.deleteAvatar()">🗑️ Borrar</button>` : ''}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- INFO -->
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Bio (Sobre ti)</label>
+                    <textarea name="bio" rows="4" class="input-field" style="width: 100%; padding: 10px;">${user.bio || ''}</textarea>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Edad</label>
+                    <input type="number" name="age" value="${(user.age !== null && user.age !== undefined) ? user.age : ''}" 
+                           class="input-field" style="width: 100%; padding: 10px;">
+                </div>
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 10px; font-weight: bold;">Zonas de Búsqueda</label>
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                        ${zones.map(zone => `
+                            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; background: var(--color-bg); padding: 8px 12px; border-radius: 20px; border: 1px solid var(--color-border);">
+                                <input type="checkbox" name="searchZones" value="${zone}" 
+                                    ${(user.searchZones || []).includes(zone) ? 'checked' : ''}>
+                                ${this.capitalizeZone(zone)}
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                <!-- GALERÍA -->
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 10px; font-weight: bold;">Galería de Fotos</label>
+                    
+                    <!-- Fotos Existentes -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; margin-bottom: 15px;">
+                         ${(user.gallery || []).map(img => `
+                            <div style="position: relative; aspect-ratio: 1;">
+                                <img src="${img}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 1px solid var(--color-border);">
+                                <button type="button" onclick="app.deleteGalleryImage('${img}')" 
+                                        class="btn-icon-danger"
+                                        style="position: absolute; top: 5px; right: 5px; background: rgba(255, 0, 0, 0.8); color: white; border-radius: 50%; width: 24px; height: 24px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold;">×</button>
+                            </div>
+                         `).join('')}
+                    </div>
+
+                    <!-- Contenedor para Previsualización de NUEVAS fotos -->
+                    <div id="new-gallery-preview" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; margin-bottom: 15px;"></div>
+
+                    <label class="btn btn-secondary" style="cursor: pointer; display: inline-flex; align-items: center; gap: 5px; width: 100%; justify-content: center; padding: 15px; border: 2px dashed var(--color-border);">
+                        ➕ Seleccionar nuevas fotos...
+                        <input type="file" name="galleryFiles" accept="image/*" multiple style="display: none;" 
+                               onchange="app.previewGallery(this)">
+                    </label>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 30px; border-top: 1px solid var(--color-border); padding-top: 20px;">
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">Guardar Cambios</button>
+                    <button type="button" class="btn btn-secondary" onclick="app.loadProfileView()" style="flex: 1;">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    `;
+};
+
+// Nueva función para previsualizar galería
+app.previewGallery = function (input) {
+    const previewContainer = document.getElementById('new-gallery-preview');
+    previewContainer.innerHTML = ''; // Limpiar anteriores previews de esta selección
+
+    if (input.files && input.files.length > 0) {
+        Array.from(input.files).forEach(file => {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const div = document.createElement('div');
+                div.style.position = 'relative';
+                div.style.aspectRatio = '1';
+
+                div.innerHTML = `
+                    <div style="position: absolute; top: 0; left: 0; background: #4CAF50; color: white; padding: 2px 6px; font-size: 10px; border-radius: 0 0 4px 0; z-index: 2;">NUEVA</div>
+                    <img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 2px solid #4CAF50; opacity: 0.8;">
+                `;
+                previewContainer.appendChild(div);
+            }
+            reader.readAsDataURL(file);
+        });
+    }
+};
