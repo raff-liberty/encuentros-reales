@@ -1,4 +1,8 @@
-# Encuentros Reales - Plataforma de Encuentros Adultos Auténticos
+# Encuentros Reales 🔞
+
+> Plataforma moderna para encuentros entre adultos.
+> **Estado:** 🟢 Desplegado en Vercel.
+Auténticos
 
 ## 🔥 Descripción
 
