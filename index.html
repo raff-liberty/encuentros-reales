@@ -30,10 +30,10 @@
         <!-- Header -->
         <header class="header">
             <div class="user-greeting">
-                <div class="user-avatar" id="header-avatar">
+                <div class="user-avatar" id="header-avatar" onclick="app.showView('profile')" style="cursor: pointer;">
                     <span id="header-avatar-icon">👤</span>
                 </div>
-                <div class="user-info">
+                <div class="user-info" onclick="app.showView('profile')" style="cursor: pointer;">
                     <h3 id="header-username">Usuario</h3>
                     <p id="header-role">Rol</p>
                 </div>
@@ -46,7 +46,7 @@
                     🔔
                     <span id="notifications-badge" class="notification-badge hidden">0</span>
                 </button>
-                <button class="icon-btn" title="Configuración">⚙️</button>
+                <button class="icon-btn" title="Configuración" onclick="app.showView('profile')">⚙️</button>
                 <button class="icon-btn" onclick="app.logout()" title="Salir">🚪</button>
             </div>
         </header>
