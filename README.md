@@ -1,7 +1,7 @@
 # Encuentros Reales 🔞
 
 > Plataforma moderna para encuentros entre adultos.
-> **Estado:** 🟢 Desplegado en Vercel.
+> **Estado:** 🚀 Desplegando en Vercel...
 Auténticos
 
 ## 🔥 Descripción
