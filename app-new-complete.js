@@ -912,7 +912,7 @@ const app = {
                 : '<span class="badge" style="background: var(--color-error);">❌ No verificado</span>';
 
         container.innerHTML = `
-    < div class="profile-grid" >
+            <div class="profile-grid">
                 <div class="profile-main">
                     <div class="card profile-header">
                         <img src="${user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`}" 
@@ -939,7 +939,7 @@ const app = {
                         <div class="card">
                             <h3 style="margin-bottom: var(--spacing-md);">Zonas de Búsqueda</h3>
                             <div style="display: flex; gap: var(--spacing-sm); flex-wrap: wrap;">
-                                ${user.searchZones.map(z => `
+                                ${(user.searchZones || []).map(z => `
                                     <span class="badge badge-info">${this.capitalizeZone(z)}</span>
                                 `).join('')}
                             </div>
@@ -950,7 +950,7 @@ const app = {
                         <div class="card">
                             <h3 style="margin-bottom: var(--spacing-md);">Galería</h3>
                             <div class="gallery-grid">
-                                ${user.gallery.map(img => `
+                                ${(user.gallery || []).map(img => `
                                     <div class="gallery-item" onclick="app.showImageModal('${img}')">
                                         <img src="${img}" alt="Galería">
                                     </div>
@@ -962,7 +962,7 @@ const app = {
                     ${user.reviews && user.reviews.length > 0 ? `
                         <div class="card">
                             <h3 style="margin-bottom: var(--spacing-md);">Valoraciones Recibidas</h3>
-                            ${user.reviews.map(review => `
+                            ${(user.reviews || []).map(review => `
                                 <div class="review-card">
                                     <div class="review-header">
                                         <div class="review-rating">${'⭐'.repeat(review.rating)}</div>
