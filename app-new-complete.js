@@ -1956,3 +1956,198 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 window.app = app;
+
+// ===== PROFILE UX IMPROVEMENTS (Overwrites previous methods) =====
+
+app.toggleProfileEdit = function () {
+    const user = AppState.currentUser;
+    console.log('Editando perfil (UX Improved). Datos:', user);
+
+    // Normalizar avatar
+    const currentAvatar = user.avatar || user.avatar_url;
+    const container = document.getElementById('profile-container');
+    const zones = ['norte', 'sur', 'este', 'oeste', 'centro'];
+
+    container.innerHTML = `
+        <div class="card" style="max-width: 600px; margin: 0 auto;">
+            <h2 style="margin-bottom: 20px;">✏️ Editar Perfil</h2>
+            <form id="profile-edit-form" onsubmit="app.saveProfile(event)">
+                
+                <!-- AVATAR SECTION -->
+                <div class="form-group" style="margin-bottom: 20px; text-align: center;">
+                    <label style="display: block; margin-bottom: 10px; font-weight: bold;">Foto de Perfil</label>
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 15px;">
+                        <img id="avatar-preview" 
+                             src="${currentAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`}" 
+                             style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid var(--color-primary); box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                        
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <label class="btn btn-secondary" style="cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                                📷 Cambiar
+                                <input type="file" name="avatarFile" accept="image/*" style="display: none;" 
+                                       onchange="app.previewAvatar(this)">
+                            </label>
+                            
+                            ${currentAvatar ? `
+                                <button type="button" class="btn" style="background: var(--color-error); color: white;" 
+                                        onclick="app.deleteAvatar()">🗑️ Borrar</button>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Bio (Sobre ti)</label>
+                    <textarea name="bio" rows="4" class="input-field" style="width: 100%; padding: 10px;" placeholder="Cuéntanos algo sobre ti...">${user.bio || ''}</textarea>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Edad</label>
+                    <input type="number" name="age" value="${(user.age !== null && user.age !== undefined) ? user.age : ''}" 
+                           class="input-field" style="width: 100%; padding: 10px;" placeholder="Ej: 30">
+                </div>
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 10px; font-weight: bold;">Zonas de Búsqueda</label>
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                        ${zones.map(zone => `
+                            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; background: var(--color-bg); padding: 8px 12px; border-radius: 20px; border: 1px solid var(--color-border);">
+                                <input type="checkbox" name="searchZones" value="${zone}" 
+                                    ${(user.searchZones || []).includes(zone) ? 'checked' : ''}>
+                                ${this.capitalizeZone(zone)}
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 10px; font-weight: bold;">Galería de Fotos</label>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; margin-bottom: 15px;">
+                         ${(user.gallery || []).map(img => `
+                            <div style="position: relative; aspect-ratio: 1;">
+                                <img src="${img}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 1px solid var(--color-border);">
+                                <button type="button" onclick="app.deleteGalleryImage('${img}')" 
+                                        class="btn-icon-danger"
+                                        style="position: absolute; top: 5px; right: 5px; background: rgba(255, 0, 0, 0.8); color: white; border-radius: 50%; width: 24px; height: 24px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 16px;">×</button>
+                            </div>
+                         `).join('')}
+                    </div>
+
+                    <label class="btn btn-secondary" style="cursor: pointer; display: inline-flex; align-items: center; gap: 5px;">
+                        ➕ Añadir fotos a la galería
+                        <input type="file" name="galleryFiles" accept="image/*" multiple style="display: none;">
+                    </label>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 30px; border-top: 1px solid var(--color-border); padding-top: 20px;">
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">Guardar Cambios</button>
+                    <button type="button" class="btn btn-secondary" onclick="app.loadProfileView()" style="flex: 1;">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    `;
+};
+
+app.previewAvatar = function (input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            document.getElementById('avatar-preview').src = e.target.result;
+        }
+        reader.readAsDataURL(input.files[0]);
+    }
+};
+
+app.deleteAvatar = async function () {
+    if (!confirm('¿Seguro que quieres borrar tu foto de perfil actual?')) return;
+    try {
+        await SupabaseService.updateUser(AppState.currentUser.id, { avatar_url: null });
+        const updated = await SupabaseService.getCurrentUser();
+        if (updated) updated.avatar = null;
+        AppState.currentUser = updated;
+        this.toggleProfileEdit();
+        this.showToast('Foto de perfil eliminada', 'success');
+    } catch (error) {
+        console.error(error);
+        this.showToast('Error borrando foto: ' + error.message, 'error');
+    }
+};
+
+app.saveProfile = async function (event) {
+    event.preventDefault();
+    const form = event.target;
+    const user = AppState.currentUser;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Guardando...';
+
+    try {
+        const selectedZones = Array.from(form.querySelectorAll('input[name="searchZones"]:checked'))
+            .map(cb => cb.value);
+
+        let updates = {
+            bio: form.bio.value,
+            age: form.age.value ? parseInt(form.age.value) : null,
+            search_zones: selectedZones
+        };
+
+        const avatarFile = form.avatarFile.files[0];
+        if (avatarFile) {
+            const path = `${user.id}/${Date.now()}_avatar`;
+            const avatarUrl = await SupabaseService.uploadFile('avatars', path, avatarFile);
+            updates.avatar_url = avatarUrl;
+        }
+
+        const galleryFiles = form.galleryFiles.files;
+        if (galleryFiles.length > 0) {
+            let currentGallery = user.gallery || [];
+            if (typeof currentGallery === 'string') currentGallery = JSON.parse(currentGallery);
+            for (let i = 0; i < galleryFiles.length; i++) {
+                const file = galleryFiles[i];
+                const path = `${user.id}/${Date.now()}_gallery_${i}`;
+                const url = await SupabaseService.uploadFile('gallery', path, file);
+                currentGallery.push(url);
+            }
+            updates.gallery = currentGallery;
+        }
+
+        await SupabaseService.updateUser(user.id, updates);
+
+        const updatedProfile = await SupabaseService.getCurrentUser();
+        if (updatedProfile) {
+            updatedProfile.avatar = updatedProfile.avatar_url || updatedProfile.avatar;
+        }
+        AppState.currentUser = updatedProfile;
+
+        this.loadProfileView();
+        this.showToast('Perfil actualizado correctamente', 'success');
+
+    } catch (error) {
+        console.error('Error guardando perfil:', error);
+        this.showToast('Error: ' + (error.message || 'No se pudo guardar'), 'error');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Guardar Cambios';
+    }
+};
+
+app.deleteGalleryImage = async function (imageUrl) {
+    if (!confirm('¿Borrar esta foto de la galería?')) return;
+
+    const user = AppState.currentUser;
+    try {
+        const currentGallery = user.gallery || [];
+        const newGallery = currentGallery.filter(img => img !== imageUrl);
+
+        await SupabaseService.updateUser(user.id, { gallery: newGallery });
+        SupabaseService.deleteFile('gallery', imageUrl).catch(console.warn);
+
+        user.gallery = newGallery;
+        this.toggleProfileEdit();
+        this.showToast('Foto eliminada', 'success');
+
+    } catch (error) {
+        console.error(error);
+        this.showToast('Error borrando imagen', 'error');
+    }
+};
