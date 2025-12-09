@@ -1378,15 +1378,23 @@ const app = {
     },
 
     // ===== MODALES Y DETALLES DE EVENTOS =====
-    showEventDetail(eventId) {
-        const event = DataService.getEventById(eventId);
-        if (!event) return;
-
-        const organizer = DataService.getUserById(event.organizerId);
+    async showEventDetail(eventId) {
         const modal = document.getElementById('event-detail-modal');
         const content = document.getElementById('event-detail-content');
 
-        content.innerHTML = `
+        modal.classList.add('active');
+        content.innerHTML = '<div class="loading-spinner"></div>';
+
+        try {
+            const event = await SupabaseService.getEventById(eventId);
+            if (!event) throw new Error('Evento no encontrado');
+
+            const organizer = event.organizer || { username: 'Desconocido', avatar: null };
+            const isOrganizer = AppState.currentUser && AppState.currentUser.id === event.organizer_id;
+            const isBuscador = AppState.currentUser && AppState.currentUser.role === 'BUSCADOR';
+            const applicantsCount = 0; // TODO: Obtener conteo real si es necesario
+
+            content.innerHTML = `
             <div class="event-detail">
                 <h3>${event.title}</h3>
                 <p style="color: var(--color-text-secondary); margin: var(--spacing-sm) 0;">${event.description}</p>
@@ -1398,8 +1406,7 @@ const app = {
                         <div><strong>🕐 Hora:</strong> ${event.time}</div>
                         <div><strong>📍 Zona:</strong> ${this.capitalizeZone(event.zone)}</div>
                         <div><strong>👥 Capacidad:</strong> ${event.capacity} personas</div>
-                        <div><strong>🎭 Tipo:</strong> ${event.gangbangLevel}</div>
-                        <div><strong>📊 Postulados:</strong> ${event.applicants?.length || 0}</div>
+                        <div><strong>🎭 Tipo:</strong> ${event.gangbang_level || event.gangbangLevel || 'TRADICIONAL'}</div>
                     </div>
                 </div>
 
@@ -1410,8 +1417,8 @@ const app = {
                              style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">
                         <div>
                             <strong>${organizer.username}</strong>
-                            <div style="color: var(--color-text-secondary); font-size: var(--font-size-sm);">
-                                ⭐ ${organizer.rating.toFixed(1)} (${organizer.reviewsCount || 0} valoraciones)
+                            <div style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">
+                                ⭐ ${(organizer.rating || 0).toFixed(1)}
                             </div>
                         </div>
                     </div>
@@ -1423,10 +1430,48 @@ const app = {
                         <p style="color: var(--color-text-secondary);">${event.rules}</p>
                     </div>
                 ` : ''}
-            </div>
-        `;
 
-        modal.classList.add('active');
+                ${isOrganizer ? `
+                    <div style="margin-top: var(--spacing-lg); padding-top: var(--spacing-md); border-top: 1px solid var(--color-border); display: flex; gap: var(--spacing-md);">
+                        <button class="btn btn-secondary" onclick="app.editEvent('${event.id}')">✏️ Modificar</button>
+                        <button class="btn btn-danger" onclick="app.confirmDeleteEvent('${event.id}')" style="background-color: var(--color-error); color: white;">🗑️ Borrar Evento</button>
+                    </div>
+                ` : isBuscador ? `
+                    <div style="margin-top: var(--spacing-lg);">
+                        <button class="btn btn-primary btn-block" onclick="app.applyToEvent('${event.id}')">
+                            Me interesa ❤️
+                        </button>
+                    </div>
+                ` : ''}
+            </div>
+            `;
+        } catch (error) {
+            console.error('Error cargando detalle:', error);
+            content.innerHTML = `<div class="error-msg">Error cargando evento: ${error.message}</div>`;
+        }
+    },
+
+    async confirmDeleteEvent(eventId) {
+        if (!confirm('⚠️ ¿Estás segura de borrar este evento?\n\nSe eliminará permanentemente.')) {
+            return;
+        }
+
+        try {
+            await SupabaseService.deleteEvent(eventId);
+            this.closeEventDetail();
+            this.showToast('Evento eliminado correctamente', 'success');
+
+            if (AppState.currentView === 'applications') {
+                this.loadMyEventsView();
+            }
+        } catch (error) {
+            console.error('Error borrando evento:', error);
+            alert('Error al borrar el evento: ' + error.message);
+        }
+    },
+
+    editEvent(eventId) {
+        alert('🚧 Funcionalidad de modificación en desarrollo.');
     },
 
     closeEventDetail() {

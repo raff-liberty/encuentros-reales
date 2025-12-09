@@ -136,6 +136,24 @@ const SupabaseService = {
         return data;
     },
 
+    async getEventById(eventId) {
+        const { data, error } = await supabaseClient
+            .from('events')
+            .select(`
+                *,
+                organizer:users (
+                    username,
+                    avatar,
+                    rating
+                )
+            `)
+            .eq('id', eventId)
+            .single();
+
+        if (error) throw error;
+        return data;
+    },
+
     async createEvent(eventData, organizerId) {
         const { data, error } = await supabaseClient
             .from('events')
@@ -149,6 +167,28 @@ const SupabaseService = {
 
         if (error) throw error;
         return data;
+    },
+
+    async updateEvent(eventId, updates) {
+        const { data, error } = await supabaseClient
+            .from('events')
+            .update(updates)
+            .eq('id', eventId)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    },
+
+    async deleteEvent(eventId) {
+        const { error } = await supabaseClient
+            .from('events')
+            .delete()
+            .eq('id', eventId);
+
+        if (error) throw error;
+        return true;
     },
 
     async getEventById(eventId) {
