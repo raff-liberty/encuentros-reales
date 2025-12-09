@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Encuentros Reales - Prototipo Nuevo Diseño</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            /* Colores principales */
+            --color-primary: #6B2E9E;
+            --color-primary-dark: #4A1B7A;
+            --color-primary-light: #8B4EC2;
+
+            /* Acentos */
+            --color-accent: #FF3366;
+            --color-accent-light: #FF66B2;
+
+            /* Estados */
+            --color-success: #00FF88;
+            --color-warning: #FFD700;
+            --color-info: #00D4FF;
+
+            /* Fondos */
+            --color-bg-primary: #2D1548;
+            --color-bg-card: rgba(107, 46, 158, 0.2);
+            --color-bg-elevated: rgba(139, 78, 194, 0.15);
+
+            /* Textos */
+            --color-text-primary: #FFFFFF;
+            --color-text-secondary: rgba(255, 255, 255, 0.8);
+            --color-text-tertiary: rgba(255, 255, 255, 0.6);
+
+            /* Espaciado */
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+            --spacing-2xl: 48px;
+
+            /* Bordes */
+            --border-radius-sm: 8px;
+            --border-radius-md: 12px;
+            --border-radius-lg: 16px;
+            --border-radius-xl: 24px;
+        }
+
+        body {
+            font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+            min-height: 100vh;
+            color: var(--color-text-primary);
+            padding: 0;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(45, 21, 72, 0.8);
+            backdrop-filter: blur(10px);
+            padding: var(--spacing-md) var(--spacing-xl);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .user-greeting {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--color-accent), var(--color-accent-light));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .user-info h3 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .user-info p {
+            font-size: 12px;
+            color: var(--color-text-tertiary);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: var(--spacing-md);
+        }
+
+        .icon-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .icon-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.05);
+        }
+
+        /* Navegación */
+        .nav-tabs {
+            background: rgba(45, 21, 72, 0.6);
+            backdrop-filter: blur(10px);
+            padding: 0 var(--spacing-xl);
+            display: flex;
+            gap: var(--spacing-xl);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .nav-tab {
+            padding: var(--spacing-md) var(--spacing-sm);
+            color: var(--color-text-secondary);
+            text-decoration: none;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            font-weight: 500;
+        }
+
+        .nav-tab:hover {
+            color: var(--color-text-primary);
+        }
+
+        .nav-tab.active {
+            color: var(--color-text-primary);
+            border-bottom-color: var(--color-accent);
+        }
+
+        /* Contenido principal */
+        .main-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: var(--spacing-2xl) var(--spacing-xl);
+        }
+
+        .page-header {
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .page-header h1 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .page-header p {
+            color: var(--color-text-secondary);
+            font-size: 16px;
+        }
+
+        .filter-btn {
+            float: right;
+            margin-top: -60px;
+            padding: var(--spacing-md) var(--spacing-lg);
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: var(--border-radius-md);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            font-weight: 500;
+            transition: all 0.3s;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .filter-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Tarjetas de estadísticas */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-2xl);
+        }
+
+        .stat-card {
+            background: var(--color-bg-card);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--border-radius-lg);
+            padding: var(--spacing-lg);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--border-radius-md);
+            background: rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .stat-info h3 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--color-accent);
+        }
+
+        .stat-info p {
+            font-size: 14px;
+            color: var(--color-text-tertiary);
+        }
+
+        /* Tarjetas de eventos */
+        .events-grid {
+            display: grid;
+            gap: var(--spacing-lg);
+        }
+
+        .event-card {
+            background: var(--color-bg-card);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--border-radius-lg);
+            padding: var(--spacing-xl);
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .event-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .event-badge {
+            position: absolute;
+            top: var(--spacing-lg);
+            right: var(--spacing-lg);
+            padding: 6px 12px;
+            background: var(--color-success);
+            color: var(--color-bg-primary);
+            border-radius: var(--border-radius-sm);
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .event-header {
+            margin-bottom: var(--spacing-md);
+        }
+
+        .event-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .event-description {
+            color: var(--color-text-secondary);
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .event-organizer {
+            color: var(--color-text-tertiary);
+            font-size: 13px;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .event-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-lg);
+            padding-bottom: var(--spacing-lg);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            color: var(--color-text-secondary);
+            font-size: 14px;
+        }
+
+        .event-actions {
+            display: flex;
+            gap: var(--spacing-md);
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: var(--border-radius-md);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: none;
+            font-size: 14px;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            flex: 1;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--color-accent), var(--color-accent-light));
+            color: white;
+            flex: 2;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(255, 51, 102, 0.4);
+        }
+
+        .favorite-btn {
+            position: absolute;
+            top: var(--spacing-lg);
+            left: var(--spacing-lg);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: all 0.3s;
+        }
+
+        .favorite-btn:hover {
+            background: rgba(255, 51, 102, 0.3);
+            transform: scale(1.1);
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .filter-btn {
+                float: none;
+                margin-top: var(--spacing-md);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="user-greeting">
+            <div class="user-avatar">🔍</div>
+            <div class="user-info">
+                <h3>¡Hola, kkmk!</h3>
+                <p>Panel de Buscador</p>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="icon-btn">🔔</button>
+            <button class="icon-btn">⚙️</button>
+            <button class="icon-btn">🚪</button>
+        </div>
+    </div>
+
+    <!-- Navegación -->
+    <nav class="nav-tabs">
+        <a href="#" class="nav-tab active">
+            <span>🔍</span>
+            Explorar (2)
+        </a>
+        <a href="#" class="nav-tab">
+            <span>👥</span>
+            Mis Postulaciones (2)
+        </a>
+        <a href="#" class="nav-tab">
+            <span>❤️</span>
+            Favoritos
+        </a>
+        <a href="#" class="nav-tab">
+            <span>👤</span>
+            Mi Perfil
+        </a>
+    </nav>
+
+    <!-- Contenido Principal -->
+    <main class="main-content">
+        <div class="page-header">
+            <h1>Eventos disponibles</h1>
+            <p>Encuentra el encuentro perfecto para ti</p>
+            <button class="filter-btn">
+                <span>🔽</span>
+                Filtros
+            </button>
+        </div>
+
+        <!-- Estadísticas -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">⭐</div>
+                <div class="stat-info">
+                    <h3>0.0</h3>
+                    <p>Tu reputación</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">👥</div>
+                <div class="stat-info">
+                    <h3>12</h3>
+                    <p>Eventos asistidos</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📅</div>
+                <div class="stat-info">
+                    <h3>En 5 días</h3>
+                    <p>Próximo evento</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lista de Eventos -->
+        <div class="events-grid">
+            <!-- Evento 1 -->
+            <div class="event-card">
+                <button class="favorite-btn">♡</button>
+                <span class="event-badge">Tradicional</span>
+
+                <div class="event-header">
+                    <h2 class="event-title">Encuentro nocturno en Barcelona</h2>
+                    <p class="event-description">Ambiente relajado, buen rollo garantizado</p>
+                    <p class="event-organizer">Organizadora: Laura_BCN</p>
+                </div>
+
+                <div class="event-meta">
+                    <div class="meta-item">
+                        <span>📅</span>
+                        15 de diciembre
+                    </div>
+                    <div class="meta-item">
+                        <span>🕐</span>
+                        20:00
+                    </div>
+                    <div class="meta-item">
+                        <span>📍</span>
+                        Barcelona - Eixample
+                    </div>
+                    <div class="meta-item">
+                        <span>👥</span>
+                        12 postulados
+                    </div>
+                </div>
+
+                <div class="event-actions">
+                    <button class="btn btn-secondary">Ver detalles</button>
+                    <button class="btn btn-primary">Apuntarme</button>
+                </div>
+            </div>
+
+            <!-- Evento 2 -->
+            <div class="event-card">
+                <button class="favorite-btn">♡</button>
+                <span class="event-badge">Tradicional</span>
+
+                <div class="event-header">
+                    <h2 class="event-title">Encuentro casual Sevilla</h2>
+                    <p class="event-description">Primera vez organizando, ambiente friendly</p>
+                    <p class="event-organizer">Organizadora: Carmen_Sevilla</p>
+                </div>
+
+                <div class="event-meta">
+                    <div class="meta-item">
+                        <span>📅</span>
+                        22 de diciembre
+                    </div>
+                    <div class="meta-item">
+                        <span>🕐</span>
+                        20:30
+                    </div>
+                    <div class="meta-item">
+                        <span>📍</span>
+                        Sevilla - Triana
+                    </div>
+                    <div class="meta-item">
+                        <span>👥</span>
+                        6 postulados
+                    </div>
+                </div>
+
+                <div class="event-actions">
+                    <button class="btn btn-secondary">Ver detalles</button>
+                    <button class="btn btn-primary">Apuntarme</button>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+
+</html>
