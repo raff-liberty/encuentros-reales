@@ -106,6 +106,18 @@ const SupabaseService = {
         return profile;
     },
 
+    async updateUser(userId, updates) {
+        const { data, error } = await supabaseClient
+            .from('users')
+            .update(updates)
+            .eq('id', userId)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    },
+
     // ===== EVENTOS =====
     async getAllEvents() {
         const { data, error } = await supabaseClient

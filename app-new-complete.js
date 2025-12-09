@@ -1023,6 +1023,81 @@ const app = {
     `;
     },
 
+    toggleProfileEdit() {
+        const user = AppState.currentUser;
+        const container = document.getElementById('profile-container');
+        const zones = ['norte', 'sur', 'este', 'oeste', 'centro'];
+
+        container.innerHTML = `
+            <div class="card" style="max-width: 600px; margin: 0 auto;">
+                <h2 style="margin-bottom: 20px;">✏️ Editar Perfil</h2>
+                <form id="profile-edit-form" onsubmit="app.saveProfile(event)">
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Bio (Sobre ti)</label>
+                        <textarea name="bio" rows="4" class="input-field" style="width: 100%; padding: 10px;">${user.bio || ''}</textarea>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Edad</label>
+                        <input type="number" name="age" value="${user.age || ''}" class="input-field" style="width: 100%; padding: 10px;">
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 10px; font-weight: bold;">Zonas de Búsqueda</label>
+                        <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                            ${zones.map(zone => `
+                                <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; background: var(--color-bg); padding: 5px 10px; border-radius: 15px; border: 1px solid var(--color-border);">
+                                    <input type="checkbox" name="searchZones" value="${zone}" 
+                                        ${(user.searchZones || []).includes(zone) ? 'checked' : ''}>
+                                    ${this.capitalizeZone(zone)}
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 20px;">
+                        <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                        <button type="button" class="btn btn-secondary" onclick="app.loadProfileView()">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+        `;
+    },
+
+    async saveProfile(event) {
+        event.preventDefault();
+        const form = event.target;
+        const user = AppState.currentUser;
+
+        const selectedZones = Array.from(form.querySelectorAll('input[name="searchZones"]:checked'))
+            .map(cb => cb.value);
+
+        const updates = {
+            bio: form.bio.value,
+            age: form.age.value ? parseInt(form.age.value) : null,
+            search_zones: selectedZones
+        };
+
+        const submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Guardando...';
+
+        try {
+            await SupabaseService.updateUser(user.id, updates);
+
+            // Recargar datos frescos del usuario
+            AppState.currentUser = await SupabaseService.getCurrentUser();
+
+            this.loadProfileView();
+            this.showToast('Perfil actualizado correctamente', 'success');
+        } catch (error) {
+            console.error(error);
+            this.showToast('Error guardando perfil: ' + error.message, 'error');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Guardar Cambios';
+        }
+    },
+
     // ===== UTILIDADES =====
     formatDate(date) {
         if (typeof date === 'string') {
