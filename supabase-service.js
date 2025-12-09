@@ -83,6 +83,11 @@ const SupabaseService = {
             throw profileError;
         }
 
+        // Normalizar avatar_url a avatar para compatibilidad con UI
+        if (profile) {
+            profile.avatar = profile.avatar_url || profile.avatar;
+        }
+
         return profile;
     },
 
@@ -102,6 +107,11 @@ const SupabaseService = {
             .select('*')
             .eq('id', session.user.id)
             .single();
+
+        // Normalizar avatar_url a avatar
+        if (profile) {
+            profile.avatar = profile.avatar_url || profile.avatar;
+        }
 
         return profile;
     },
@@ -165,7 +175,7 @@ const SupabaseService = {
                 *,
                 organizer:users (
                     username,
-                    avatar,
+                    avatar_url,
                     rating
                 )
             `)
@@ -173,6 +183,16 @@ const SupabaseService = {
             .order('date', { ascending: true });
 
         if (error) throw error;
+
+        // Normalizar avatar_url a avatar
+        if (data) {
+            data.forEach(event => {
+                if (event.organizer) {
+                    event.organizer.avatar = event.organizer.avatar_url || event.organizer.avatar;
+                }
+            });
+        }
+
         return data;
     },
 
@@ -194,7 +214,7 @@ const SupabaseService = {
                 *,
                 organizer:users (
                     username,
-                    avatar,
+                    avatar_url,
                     rating
                 )
             `)
@@ -202,6 +222,12 @@ const SupabaseService = {
             .single();
 
         if (error) throw error;
+
+        // Normalizar avatar_url a avatar
+        if (data && data.organizer) {
+            data.organizer.avatar = data.organizer.avatar_url || data.organizer.avatar;
+        }
+
         return data;
     },
 
@@ -242,7 +268,7 @@ const SupabaseService = {
         return true;
     },
 
-    async getEventById(eventId) {
+    async getEventByIdFull(eventId) {
         const { data, error } = await supabaseClient
             .from('events')
             .select(`
@@ -253,6 +279,12 @@ const SupabaseService = {
             .single();
 
         if (error) throw error;
+
+        // Normalizar avatar_url a avatar
+        if (data && data.organizer) {
+            data.organizer.avatar = data.organizer.avatar_url || data.organizer.avatar;
+        }
+
         return data;
     },
 

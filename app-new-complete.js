@@ -30,6 +30,8 @@ const app = {
                         .single();
 
                     if (profile) {
+                        // Normalizar avatar_url a avatar para compatibilidad con UI
+                        profile.avatar = profile.avatar_url || profile.avatar;
                         AppState.currentUser = profile;
                         console.log('👤 Perfil cargado:', profile.username);
                         this.showApp();
@@ -144,6 +146,8 @@ const app = {
                 this.showToast('Iniciando sesión...', 'info');
                 const user = await SupabaseService.signIn(email, password);
 
+                // Normalizar avatar_url a avatar para compatibilidad con UI
+                user.avatar = user.avatar_url || user.avatar;
                 AppState.currentUser = user;
                 // Guardar en localStorage solo como backup/cache si se desea
                 localStorage.setItem('currentUser', JSON.stringify(user));
@@ -207,16 +211,22 @@ const app = {
 
     updateHeader() {
         const user = AppState.currentUser;
+        console.log('🔄 updateHeader called with user:', user?.username, 'avatar:', user?.avatar, 'avatar_url:', user?.avatar_url);
+
         document.getElementById('header-username').textContent = `¡Hola, ${user.username}!`;
         document.getElementById('header-role').textContent = `Panel de ${user.role === 'OFERENTE' ? 'Oferente' : 'Buscador'}`;
 
-        // Avatar
+        // Avatar - Verificar AMBOS campos: avatar y avatar_url
         const avatarContainer = document.getElementById('header-avatar');
-        if (user.avatar) {
-            avatarContainer.innerHTML = `<img src="${user.avatar}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+        const avatarUrl = user.avatar || user.avatar_url;
+
+        if (avatarUrl) {
+            console.log('✅ Mostrando avatar:', avatarUrl);
+            avatarContainer.innerHTML = `<img src="${avatarUrl}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
         } else {
+            console.log('❌ No hay avatar, mostrando icono');
             const icon = user.role === 'OFERENTE' ? '👑' : '🔍';
-            document.getElementById('header-avatar-icon').textContent = icon;
+            avatarContainer.innerHTML = `<span id="header-avatar-icon">${icon}</span>`;
         }
     },
 
@@ -915,7 +925,7 @@ const app = {
             <div class="profile-grid">
                 <div class="profile-main">
                     <div class="card profile-header">
-                        <img src="${user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`}" 
+                        <img src="${user.avatar || user.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`}" 
                              class="profile-avatar" alt="${user.username}">
                         <h1 class="profile-name">${user.username}</h1>
                         <p class="profile-role">${user.role}</p>
