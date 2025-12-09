@@ -1025,6 +1025,8 @@ const app = {
 
     toggleProfileEdit() {
         const user = AppState.currentUser;
+        // Normalizar avatar por si viene como avatar_url
+        const currentAvatar = user.avatar || user.avatar_url;
         const container = document.getElementById('profile-container');
         const zones = ['norte', 'sur', 'este', 'oeste', 'centro'];
 
@@ -1032,6 +1034,16 @@ const app = {
             <div class="card" style="max-width: 600px; margin: 0 auto;">
                 <h2 style="margin-bottom: 20px;">✏️ Editar Perfil</h2>
                 <form id="profile-edit-form" onsubmit="app.saveProfile(event)">
+                    
+                    <div class="form-group" style="margin-bottom: 20px; text-align: center;">
+                        <label style="display: block; margin-bottom: 10px; font-weight: bold;">Foto de Perfil</label>
+                        <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+                            <img src="${currentAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`}" 
+                                 style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid var(--color-primary);">
+                            <input type="file" name="avatarFile" accept="image/*" class="input-field">
+                        </div>
+                    </div>
+
                     <div class="form-group" style="margin-bottom: 15px;">
                         <label style="display: block; margin-bottom: 5px; font-weight: bold;">Bio (Sobre ti)</label>
                         <textarea name="bio" rows="4" class="input-field" style="width: 100%; padding: 10px;">${user.bio || ''}</textarea>
@@ -1055,6 +1067,23 @@ const app = {
                         </div>
                     </div>
                     
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 10px; font-weight: bold;">Galería de Fotos</label>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px; margin-bottom: 10px;">
+                             ${(user.gallery || []).map(img => `
+                                <div style="position: relative;">
+                                    <img src="${img}" style="width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px;">
+                                    <button type="button" onclick="app.deleteGalleryImage('${img}')" 
+                                            style="position: absolute; top: -5px; right: -5px; background: red; color: white; border-radius: 50%; width: 20px; height: 20px; border: none; cursor: pointer; font-size: 10px;">X</button>
+                                </div>
+                             `).join('')}
+                        </div>
+
+                        <input type="file" name="galleryFiles" accept="image/*" multiple class="input-field">
+                        <small style="color: var(--color-text-secondary);">Puedes seleccionar varias fotos a la vez</small>
+                    </div>
+
                     <div style="display: flex; gap: 10px; margin-top: 20px;">
                         <button type="submit" class="btn btn-primary">Guardar Cambios</button>
                         <button type="button" class="btn btn-secondary" onclick="app.loadProfileView()">Cancelar</button>
@@ -1068,33 +1097,87 @@ const app = {
         event.preventDefault();
         const form = event.target;
         const user = AppState.currentUser;
-
-        const selectedZones = Array.from(form.querySelectorAll('input[name="searchZones"]:checked'))
-            .map(cb => cb.value);
-
-        const updates = {
-            bio: form.bio.value,
-            age: form.age.value ? parseInt(form.age.value) : null,
-            search_zones: selectedZones
-        };
-
         const submitBtn = form.querySelector('button[type="submit"]');
         submitBtn.disabled = true;
         submitBtn.textContent = 'Guardando...';
 
         try {
+            // 1. Recoger datos básicos
+            const selectedZones = Array.from(form.querySelectorAll('input[name="searchZones"]:checked'))
+                .map(cb => cb.value);
+
+            let updates = {
+                bio: form.bio.value,
+                age: form.age.value ? parseInt(form.age.value) : null,
+                search_zones: selectedZones
+            };
+
+            // 2. Subir avatar si existe
+            const avatarFile = form.avatarFile.files[0];
+            if (avatarFile) {
+                const path = `${user.id}/${Date.now()}_avatar`;
+                const avatarUrl = await SupabaseService.uploadFile('avatars', path, avatarFile);
+                updates.avatar_url = avatarUrl;
+            }
+
+            // 3. Subir galería si existe
+            const galleryFiles = form.galleryFiles.files;
+            if (galleryFiles.length > 0) {
+                let currentGallery = user.gallery || [];
+                for (let i = 0; i < galleryFiles.length; i++) {
+                    const file = galleryFiles[i];
+                    const path = `${user.id}/${Date.now()}_gallery_${i}`;
+                    const url = await SupabaseService.uploadFile('gallery', path, file);
+                    currentGallery.push(url);
+                }
+                updates.gallery = currentGallery;
+            }
+
+            // 4. Actualizar usuario
             await SupabaseService.updateUser(user.id, updates);
 
-            // Recargar datos frescos del usuario
-            AppState.currentUser = await SupabaseService.getCurrentUser();
+            // 5. Refrescar estado local
+            const updatedProfile = await SupabaseService.getCurrentUser();
+            if (updatedProfile) {
+                // Mapear avatar_url -> avatar para compatibilidad con resto de app
+                updatedProfile.avatar = updatedProfile.avatar_url || updatedProfile.avatar;
+            }
+            AppState.currentUser = updatedProfile;
 
             this.loadProfileView();
             this.showToast('Perfil actualizado correctamente', 'success');
+
         } catch (error) {
-            console.error(error);
-            this.showToast('Error guardando perfil: ' + error.message, 'error');
+            console.error('Error guardando perfil:', error);
+            this.showToast('Error: ' + (error.message || 'No se pudo guardar'), 'error');
             submitBtn.disabled = false;
             submitBtn.textContent = 'Guardar Cambios';
+        }
+    },
+
+    async deleteGalleryImage(imageUrl) {
+        if (!confirm('¿Borrar esta foto?')) return;
+
+        const user = AppState.currentUser;
+        try {
+            // 1. Filtrar array local
+            const newGallery = (user.gallery || []).filter(img => img !== imageUrl);
+
+            // 2. Actualizar DB
+            await SupabaseService.updateUser(user.id, { gallery: newGallery });
+
+            // 3. Refrescar UI
+            user.gallery = newGallery;
+            this.toggleProfileEdit();
+
+            // Intento de borrado físico en background
+            try {
+                await SupabaseService.deleteFile('gallery', imageUrl);
+            } catch (e) { console.warn('Borrado físico falló, pero DB actualizada', e); }
+
+        } catch (error) {
+            console.error(error);
+            this.showToast('Error borrando imagen', 'error');
         }
     },
 

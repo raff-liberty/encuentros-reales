@@ -107,6 +107,7 @@ const SupabaseService = {
     },
 
     async updateUser(userId, updates) {
+        console.log('Intentando actualizar usuario:', userId, updates);
         const { data, error } = await supabaseClient
             .from('users')
             .update(updates)
@@ -114,8 +115,46 @@ const SupabaseService = {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            console.error('Error Supabase Update:', error);
+            throw error;
+        }
         return data;
+    },
+
+    // ===== STORAGE (ARCHIVOS) =====
+    async uploadFile(bucket, path, file) {
+        const { data, error } = await supabaseClient.storage
+            .from(bucket)
+            .upload(path, file, {
+                cacheControl: '3600',
+                upsert: true
+            });
+
+        if (error) throw error;
+
+        // Obtener URL pública
+        const { data: { publicUrl } } = supabaseClient.storage
+            .from(bucket)
+            .getPublicUrl(path);
+
+        return publicUrl;
+    },
+
+    async deleteFile(bucket, path) {
+        // path puede ser la URL completa o solo el path relativo
+        // Si es URL completa, extraer path
+        if (path.startsWith('http')) {
+            const urlParts = path.split(`${bucket}/`);
+            if (urlParts.length > 1) path = urlParts[1];
+        }
+
+        const { error } = await supabaseClient.storage
+            .from(bucket)
+            .remove([path]);
+
+        if (error) throw error;
+        return true;
     },
 
     // ===== EVENTOS =====
