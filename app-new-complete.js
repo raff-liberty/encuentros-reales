@@ -195,8 +195,10 @@ const app = {
         // Cargar vista inicial
         if (AppState.currentUser.role === 'ADMIN') {
             this.showView('admin');
+        } else if (AppState.currentUser.role === 'OFERENTE') {
+            this.showView('applications'); // Oferentes van directo a sus eventos
         } else {
-            this.showView('explore');
+            this.showView('explore'); // Buscadores van a explorar
         }
 
         // Forzar actualización del badge de notificaciones
@@ -222,8 +224,35 @@ const app = {
         const user = AppState.currentUser;
         if (!user) return;
 
-        // Mostrar tabs específicos
+        // Referencias a tabs
+        const exploreTab = document.querySelector('[data-view="explore"]');
+        const favoritesTab = document.querySelector('[data-view="favorites"]');
+        const applicationsTab = document.querySelector('[data-view="applications"]');
         const adminTab = document.querySelector('[data-view="admin"]');
+
+        // Lógica de visualización por ROL
+        if (user.role === 'OFERENTE') {
+            // Oferentes no exploran ni tienen favoritos (por ahora)
+            if (exploreTab) exploreTab.style.display = 'none';
+            if (favoritesTab) favoritesTab.style.display = 'none';
+
+            // Renombrar "Mis Postulaciones" a "Mis Eventos"
+            if (applicationsTab) {
+                const label = applicationsTab.querySelector('span:nth-child(2)');
+                if (label) label.textContent = 'Mis Eventos';
+            }
+        } else {
+            // Buscadores ven todo
+            if (exploreTab) exploreTab.style.display = 'flex';
+            if (favoritesTab) favoritesTab.style.display = 'flex';
+
+            if (applicationsTab) {
+                const label = applicationsTab.querySelector('span:nth-child(2)');
+                if (label) label.textContent = 'Mis Postulaciones';
+            }
+        }
+
+        // Mostrar tabs específicos ADMIN
         if (adminTab) {
             if (user.role === 'ADMIN') {
                 adminTab.classList.remove('hidden');
