@@ -500,10 +500,12 @@ const app = {
         }
 
         container.innerHTML = events.map(event => {
-            const organizer = DataService.getUserById(event.organizerId);
+            // El organizador viene populado por Supabase gracias al select con join
+            const organizer = event.organizer || { username: 'Desconocido' };
             const isFavorite = AppState.favorites.includes(event.id);
-            const badgeColor = event.gangbangLevel === 'TRADICIONAL' ? 'var(--color-success)' :
-                event.gangbangLevel === 'SUMISO' ? 'var(--color-warning)' :
+            const level = event.gangbang_level || event.gangbangLevel || 'TRADICIONAL';
+            const badgeColor = level === 'TRADICIONAL' ? 'var(--color-success)' :
+                level === 'SUMISO' ? 'var(--color-warning)' :
                     'var(--color-info)';
 
             return `
@@ -511,7 +513,7 @@ const app = {
                     <button class="favorite-btn ${isFavorite ? 'active' : ''}" onclick="app.toggleFavorite('${event.id}')">
                         ${isFavorite ? '❤️' : '♡'}
                     </button>
-                    <span class="event-badge" style="background: ${badgeColor};">${event.gangbangLevel}</span>
+                    <span class="event-badge" style="background: ${badgeColor};">${level}</span>
                     
                     <div class="event-header">
                         <h2 class="event-title">${event.title}</h2>

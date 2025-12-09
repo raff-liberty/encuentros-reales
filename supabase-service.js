@@ -110,7 +110,14 @@ const SupabaseService = {
     async getAllEvents() {
         const { data, error } = await supabaseClient
             .from('events')
-            .select('*')
+            .select(`
+                *,
+                organizer:users (
+                    username,
+                    avatar,
+                    rating
+                )
+            `)
             .eq('status', 'ACTIVO') // Solo eventos activos
             .order('date', { ascending: true });
 
