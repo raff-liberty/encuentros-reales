@@ -433,7 +433,11 @@ const app = {
             this.renderEvents(events);
         } catch (error) {
             console.error('Error cargando eventos:', error);
-            container.innerHTML = '<div class="error-msg">Error cargando eventos. Intenta nuevamente.</div>';
+            container.innerHTML = `<div class="error-msg" style="color: red; padding: 20px; text-align: center;">
+                <h3>Error cargando eventos 😢</h3>
+                <p>${error.message || 'Error desconocido'}</p>
+                <small>Código: ${error.code || 'N/A'}</small>
+            </div>`;
         }
     },
 
