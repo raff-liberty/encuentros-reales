@@ -641,10 +641,19 @@ const app = {
             this.loadExploreView();
         } catch (error) {
             console.error('Error al postularse:', error);
+            console.error('Error details:', {
+                message: error.message,
+                code: error.code,
+                details: error.details,
+                hint: error.hint
+            });
+
             if (error.code === '23505') { // Unique violation en Postgres/Supabase
                 this.showToast('Ya te has postulado a este evento', 'warning');
             } else {
-                this.showToast('Error al enviar postulación', 'error');
+                // Mostrar error específico al usuario
+                const errorMsg = error.message || error.hint || 'Error desconocido';
+                this.showToast(`Error: ${errorMsg}`, 'error');
             }
         }
     },
