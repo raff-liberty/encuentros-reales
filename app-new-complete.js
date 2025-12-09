@@ -748,8 +748,11 @@ const app = {
         // Mostrar spinner de carga
         container.innerHTML = '<div class="loading-spinner"></div>';
 
+        console.log('Cargando eventos para organizador:', user.id);
+
         try {
             const myEvents = await SupabaseService.getEventsByCreator(user.id);
+            console.log('Eventos recuperados:', myEvents);
 
             if (myEvents.length === 0) {
                 container.innerHTML = `
@@ -831,14 +834,18 @@ const app = {
 
             // Actualizar contador
             document.getElementById('applications-count').textContent = myEvents.length;
-        },
+        } catch (error) {
+            console.error('Error cargando eventos:', error);
+            container.innerHTML = '<div class="text-center" style="padding: 20px; color: var(--color-error);">Error cargando tus eventos. Por favor recarga la página.</div>';
+        }
+    },
 
-        // ===== VISTA: FAVORITOS =====
-        loadFavoritesView() {
-            const container = document.getElementById('favorites-list');
+    // ===== VISTA: FAVORITOS =====
+    loadFavoritesView() {
+        const container = document.getElementById('favorites-list');
 
-            if (AppState.favorites.length === 0) {
-                container.innerHTML = `
+        if (AppState.favorites.length === 0) {
+            container.innerHTML = `
                 <div class="card text-center" style="padding: var(--spacing-2xl);">
                     <div style="font-size: 48px; margin-bottom: var(--spacing-md);">❤️</div>
                     <h3>No tienes favoritos</h3>
@@ -848,28 +855,28 @@ const app = {
                     <button class="btn btn-primary mt-md" onclick="app.showView('explore')">Explorar eventos</button>
                 </div>
     `;
-                return;
-            }
+            return;
+        }
 
-            const events = AppState.favorites
-                .map(id => DataService.getEventById(id))
-                .filter(e => e !== null);
+        const events = AppState.favorites
+            .map(id => DataService.getEventById(id))
+            .filter(e => e !== null);
 
-            this.renderEvents(events);
-        },
+        this.renderEvents(events);
+    },
 
-        // ===== VISTA: PERFIL =====
-        loadProfileView() {
-            const user = AppState.currentUser;
-            const container = document.getElementById('profile-container');
+    // ===== VISTA: PERFIL =====
+    loadProfileView() {
+        const user = AppState.currentUser;
+        const container = document.getElementById('profile-container');
 
-            const verificationBadge = user.verified === 'VERIFICADO'
-                ? '<span class="verification-badge">✓ Verificado</span>'
-                : user.verified === 'PENDIENTE'
-                    ? '<span class="badge badge-warning">⏳ Verificación pendiente</span>'
-                    : '<span class="badge" style="background: var(--color-error);">❌ No verificado</span>';
+        const verificationBadge = user.verified === 'VERIFICADO'
+            ? '<span class="verification-badge">✓ Verificado</span>'
+            : user.verified === 'PENDIENTE'
+                ? '<span class="badge badge-warning">⏳ Verificación pendiente</span>'
+                : '<span class="badge" style="background: var(--color-error);">❌ No verificado</span>';
 
-            container.innerHTML = `
+        container.innerHTML = `
     < div class="profile-grid" >
                 <div class="profile-main">
                     <div class="card profile-header">
@@ -979,217 +986,217 @@ const app = {
                 </div>
             </div >
     `;
-        },
+    },
 
-        // ===== UTILIDADES =====
-        formatDate(date) {
-            if (typeof date === 'string') {
-                const d = new Date(date);
-                return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
-            }
-            return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
-        },
+    // ===== UTILIDADES =====
+    formatDate(date) {
+        if (typeof date === 'string') {
+            const d = new Date(date);
+            return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
+        }
+        return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
+    },
 
-        capitalizeZone(zone) {
-            const zones = {
-                'norte': 'Zona Norte',
-                'sur': 'Zona Sur',
-                'este': 'Zona Este',
-                'oeste': 'Zona Oeste',
-                'centro': 'Centro'
-            };
-            return zones[zone] || zone;
-        },
+    capitalizeZone(zone) {
+        const zones = {
+            'norte': 'Zona Norte',
+            'sur': 'Zona Sur',
+            'este': 'Zona Este',
+            'oeste': 'Zona Oeste',
+            'centro': 'Centro'
+        };
+        return zones[zone] || zone;
+    },
 
-        showImageModal(imageUrl) {
-            const modal = document.getElementById('image-modal');
-            const img = document.getElementById('image-modal-img');
-            img.src = imageUrl;
-            modal.classList.add('active');
-        },
+    showImageModal(imageUrl) {
+        const modal = document.getElementById('image-modal');
+        const img = document.getElementById('image-modal-img');
+        img.src = imageUrl;
+        modal.classList.add('active');
+    },
 
-        closeImageModal() {
-            const modal = document.getElementById('image-modal');
-            modal.classList.remove('active');
-        },
+    closeImageModal() {
+        const modal = document.getElementById('image-modal');
+        modal.classList.remove('active');
+    },
 
-        showToast(message, type = 'info') {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            toast.className = `toast ${type} `;
-            toast.textContent = message;
+    showToast(message, type = 'info') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type} `;
+        toast.textContent = message;
 
-            container.appendChild(toast);
+        container.appendChild(toast);
 
-            setTimeout(() => {
-                toast.remove();
-            }, 3000);
-        },
-        // ===== GESTIÓN DE EVENTOS Y PERFIL =====
+        setTimeout(() => {
+            toast.remove();
+        }, 3000);
+    },
+    // ===== GESTIÓN DE EVENTOS Y PERFIL =====
 
-        showCreateEvent() {
-            const modal = document.getElementById('create-event-modal');
-            modal.classList.add('active');
-        },
+    showCreateEvent() {
+        const modal = document.getElementById('create-event-modal');
+        modal.classList.add('active');
+    },
 
-        closeCreateEventModal() {
-            const modal = document.getElementById('create-event-modal');
-            modal.classList.remove('active');
-        },
+    closeCreateEventModal() {
+        const modal = document.getElementById('create-event-modal');
+        modal.classList.remove('active');
+    },
 
-        handleCreateEvent(event) {
-            event.preventDefault();
+    handleCreateEvent(event) {
+        event.preventDefault();
 
-            // Validar permisos
-            if (AppState.currentUser.role !== 'OFERENTE' && AppState.currentUser.role !== 'ADMIN') {
-                this.showToast('Solo los postulantes y administradores pueden crear eventos', 'error');
-                return;
-            }
+        // Validar permisos
+        if (AppState.currentUser.role !== 'OFERENTE' && AppState.currentUser.role !== 'ADMIN') {
+            this.showToast('Solo los postulantes y administradores pueden crear eventos', 'error');
+            return;
+        }
 
-            const form = event.target;
-            const formData = new FormData(form);
+        const form = event.target;
+        const formData = new FormData(form);
 
-            const eventData = {
-                title: formData.get('title'),
-                description: formData.get('description'),
-                gangbangLevel: formData.get('gangbangLevel'),
-                date: formData.get('date'),
-                time: formData.get('time'),
-                zone: formData.get('zone'),
-                capacity: parseInt(formData.get('capacity')),
-                location: formData.get('location'),
-                rules: formData.get('rules')
-            };
+        const eventData = {
+            title: formData.get('title'),
+            description: formData.get('description'),
+            gangbangLevel: formData.get('gangbangLevel'),
+            date: formData.get('date'),
+            time: formData.get('time'),
+            zone: formData.get('zone'),
+            capacity: parseInt(formData.get('capacity')),
+            location: formData.get('location'),
+            rules: formData.get('rules')
+        };
 
-            try {
-                const newEvent = DataService.createEvent(eventData, AppState.currentUser.id);
-                this.showToast('Evento creado exitosamente', 'success');
-                this.closeCreateEventModal();
-                form.reset();
-                this.loadExploreView(); // Recargar vista
-            } catch (error) {
-                console.error(error);
-                this.showToast('Error al crear el evento', 'error');
-            }
-        },
+        try {
+            const newEvent = DataService.createEvent(eventData, AppState.currentUser.id);
+            this.showToast('Evento creado exitosamente', 'success');
+            this.closeCreateEventModal();
+            form.reset();
+            this.loadExploreView(); // Recargar vista
+        } catch (error) {
+            console.error(error);
+            this.showToast('Error al crear el evento', 'error');
+        }
+    },
 
-        toggleProfileEdit() {
-            const modal = document.getElementById('edit-profile-modal');
-            const user = AppState.currentUser;
+    toggleProfileEdit() {
+        const modal = document.getElementById('edit-profile-modal');
+        const user = AppState.currentUser;
 
-            if (!modal.classList.contains('active')) {
-                // Cargar datos actuales
-                const form = document.getElementById('edit-profile-form');
-                form.bio.value = user.bio || '';
+        if (!modal.classList.contains('active')) {
+            // Cargar datos actuales
+            const form = document.getElementById('edit-profile-form');
+            form.bio.value = user.bio || '';
 
-                // Cargar zonas
-                const checkBoxes = form.querySelectorAll('input[name="zones"]');
-                checkBoxes.forEach(cb => {
-                    cb.checked = user.searchZones && user.searchZones.includes(cb.value);
+            // Cargar zonas
+            const checkBoxes = form.querySelectorAll('input[name="zones"]');
+            checkBoxes.forEach(cb => {
+                cb.checked = user.searchZones && user.searchZones.includes(cb.value);
+            });
+
+            // Preview avatar
+            document.getElementById('edit-avatar-preview').src = user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`;
+
+            // Preview galería
+            const galleryContainer = document.getElementById('gallery-preview');
+            galleryContainer.innerHTML = '';
+            if (user.gallery) {
+                user.gallery.forEach(img => {
+                    const imgEl = document.createElement('img');
+                    imgEl.src = img;
+                    imgEl.style.width = '50px';
+                    imgEl.style.height = '50px';
+                    imgEl.style.objectFit = 'cover';
+                    galleryContainer.appendChild(imgEl);
                 });
-
-                // Preview avatar
-                document.getElementById('edit-avatar-preview').src = user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`;
-
-                // Preview galería
-                const galleryContainer = document.getElementById('gallery-preview');
-                galleryContainer.innerHTML = '';
-                if (user.gallery) {
-                    user.gallery.forEach(img => {
-                        const imgEl = document.createElement('img');
-                        imgEl.src = img;
-                        imgEl.style.width = '50px';
-                        imgEl.style.height = '50px';
-                        imgEl.style.objectFit = 'cover';
-                        galleryContainer.appendChild(imgEl);
-                    });
-                }
             }
+        }
 
-            modal.classList.toggle('active');
-        },
+        modal.classList.toggle('active');
+    },
 
-        handleImageUpload(type, input) {
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
+    handleImageUpload(type, input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
 
-                reader.onload = function (e) {
-                    const result = e.target.result;
+            reader.onload = function (e) {
+                const result = e.target.result;
 
-                    if (type === 'avatar') {
-                        document.getElementById('edit-avatar-preview').src = result;
-                        AppState.tempAvatar = result;
-                    } else if (type === 'gallery') {
-                        if (!AppState.tempGallery) AppState.tempGallery = [];
-                        if (AppState.tempGallery.length >= 4) {
-                            app.showToast('Máximo 4 fotos en la galería', 'warning');
-                            return;
-                        }
-                        AppState.tempGallery.push(result);
-
-                        // Actualizar preview
-                        const galleryContainer = document.getElementById('gallery-preview');
-                        const imgEl = document.createElement('img');
-                        imgEl.src = result;
-                        imgEl.style.width = '50px';
-                        imgEl.style.height = '50px';
-                        imgEl.style.objectFit = 'cover';
-                        galleryContainer.appendChild(imgEl);
+                if (type === 'avatar') {
+                    document.getElementById('edit-avatar-preview').src = result;
+                    AppState.tempAvatar = result;
+                } else if (type === 'gallery') {
+                    if (!AppState.tempGallery) AppState.tempGallery = [];
+                    if (AppState.tempGallery.length >= 4) {
+                        app.showToast('Máximo 4 fotos en la galería', 'warning');
+                        return;
                     }
-                };
+                    AppState.tempGallery.push(result);
 
-                reader.readAsDataURL(input.files[0]);
-            }
-        },
+                    // Actualizar preview
+                    const galleryContainer = document.getElementById('gallery-preview');
+                    const imgEl = document.createElement('img');
+                    imgEl.src = result;
+                    imgEl.style.width = '50px';
+                    imgEl.style.height = '50px';
+                    imgEl.style.objectFit = 'cover';
+                    galleryContainer.appendChild(imgEl);
+                }
+            };
 
-        handleProfileEdit(event) {
-            event.preventDefault();
-            const form = event.target;
-            const user = AppState.currentUser;
+            reader.readAsDataURL(input.files[0]);
+        }
+    },
 
-            // Actualizar Bio
-            user.bio = form.bio.value;
+    handleProfileEdit(event) {
+        event.preventDefault();
+        const form = event.target;
+        const user = AppState.currentUser;
 
-            // Actualizar Zonas
-            const checkBoxes = form.querySelectorAll('input[name="zones"]:checked');
-            user.searchZones = Array.from(checkBoxes).map(cb => cb.value);
+        // Actualizar Bio
+        user.bio = form.bio.value;
 
-            // Actualizar Avatar si hay cambio
-            if (AppState.tempAvatar) {
-                user.avatar = AppState.tempAvatar;
-                delete AppState.tempAvatar;
-            }
+        // Actualizar Zonas
+        const checkBoxes = form.querySelectorAll('input[name="zones"]:checked');
+        user.searchZones = Array.from(checkBoxes).map(cb => cb.value);
 
-            // Actualizar Galería si hay cambios
-            if (AppState.tempGallery) {
-                if (!user.gallery) user.gallery = [];
-                user.gallery = [...user.gallery, ...AppState.tempGallery].slice(0, 4); // Limitar a 4
-                delete AppState.tempGallery;
-            }
+        // Actualizar Avatar si hay cambio
+        if (AppState.tempAvatar) {
+            user.avatar = AppState.tempAvatar;
+            delete AppState.tempAvatar;
+        }
 
-            // Guardar cambios
-            const dbUser = DataService.getUserById(user.id);
-            if (dbUser) {
-                Object.assign(dbUser, user);
-            }
+        // Actualizar Galería si hay cambios
+        if (AppState.tempGallery) {
+            if (!user.gallery) user.gallery = [];
+            user.gallery = [...user.gallery, ...AppState.tempGallery].slice(0, 4); // Limitar a 4
+            delete AppState.tempGallery;
+        }
 
-            // Persistir sesión
-            localStorage.setItem('currentUser', JSON.stringify(user));
+        // Guardar cambios
+        const dbUser = DataService.getUserById(user.id);
+        if (dbUser) {
+            Object.assign(dbUser, user);
+        }
 
-            this.showToast('Perfil actualizado correctamente', 'success');
-            this.toggleProfileEdit();
-            this.loadProfileView();
-        },
+        // Persistir sesión
+        localStorage.setItem('currentUser', JSON.stringify(user));
 
-        // ===== ADMIN PANEL =====
+        this.showToast('Perfil actualizado correctamente', 'success');
+        this.toggleProfileEdit();
+        this.loadProfileView();
+    },
 
-        loadAdminView() {
-            const container = document.getElementById('view-admin');
-            const users = DataService.getAllUsers();
-            const events = DataService.getAllEvents();
-            const auditLog = DB.auditLog || [];
+    // ===== ADMIN PANEL =====
 
-            container.innerHTML = `
+    loadAdminView() {
+        const container = document.getElementById('view-admin');
+        const users = DataService.getAllUsers();
+        const events = DataService.getAllEvents();
+        const auditLog = DB.auditLog || [];
+
+        container.innerHTML = `
             <div class="admin-dashboard fade-in">
                 <div class="header-section">
                     <h1>🛡️ Panel de Control</h1>
@@ -1218,25 +1225,25 @@ const app = {
                 </div>
             </div>
         `;
-        },
+    },
 
-        switchAdminTab(tabName) {
-            const buttons = document.querySelectorAll('.tab-btn');
-            buttons.forEach(b => b.classList.remove('active'));
-            if (event) event.target.classList.add('active');
+    switchAdminTab(tabName) {
+        const buttons = document.querySelectorAll('.tab-btn');
+        buttons.forEach(b => b.classList.remove('active'));
+        if (event) event.target.classList.add('active');
 
-            const content = document.getElementById('admin-tab-content');
-            if (tabName === 'users') {
-                content.innerHTML = this.renderAdminUsersTable(DataService.getAllUsers());
-            } else if (tabName === 'events') {
-                content.innerHTML = this.renderAdminEventsTable(DataService.getAllEvents());
-            } else if (tabName === 'audit') {
-                content.innerHTML = this.renderAdminAuditTable(DB.auditLog || []);
-            }
-        },
+        const content = document.getElementById('admin-tab-content');
+        if (tabName === 'users') {
+            content.innerHTML = this.renderAdminUsersTable(DataService.getAllUsers());
+        } else if (tabName === 'events') {
+            content.innerHTML = this.renderAdminEventsTable(DataService.getAllEvents());
+        } else if (tabName === 'audit') {
+            content.innerHTML = this.renderAdminAuditTable(DB.auditLog || []);
+        }
+    },
 
-        renderAdminUsersTable(users) {
-            return `
+    renderAdminUsersTable(users) {
+        return `
             <div class="card">
                 <h3>Gestión de Usuarios</h3>
                 <div class="table-responsive">
@@ -1269,10 +1276,10 @@ const app = {
                 </div>
             </div>
         `;
-        },
+    },
 
-        renderAdminEventsTable(events) {
-            return `
+    renderAdminEventsTable(events) {
+        return `
             <div class="card">
                 <h3>Gestión de Eventos</h3>
                 <div class="table-responsive">
@@ -1303,10 +1310,10 @@ const app = {
                 </div>
             </div>
         `;
-        },
+    },
 
-        renderAdminAuditTable(logs) {
-            return `
+    renderAdminAuditTable(logs) {
+        return `
            <div class="card">
                 <h3>Auditoría del Sistema</h3>
                 <div class="table-responsive">
@@ -1333,18 +1340,18 @@ const app = {
                 </div>
            </div>
         `;
-        },
+    },
 
-        // ===== MODALES Y DETALLES DE EVENTOS =====
-        showEventDetail(eventId) {
-            const event = DataService.getEventById(eventId);
-            if (!event) return;
+    // ===== MODALES Y DETALLES DE EVENTOS =====
+    showEventDetail(eventId) {
+        const event = DataService.getEventById(eventId);
+        if (!event) return;
 
-            const organizer = DataService.getUserById(event.organizerId);
-            const modal = document.getElementById('event-detail-modal');
-            const content = document.getElementById('event-detail-content');
+        const organizer = DataService.getUserById(event.organizerId);
+        const modal = document.getElementById('event-detail-modal');
+        const content = document.getElementById('event-detail-content');
 
-            content.innerHTML = `
+        content.innerHTML = `
             <div class="event-detail">
                 <h3>${event.title}</h3>
                 <p style="color: var(--color-text-secondary); margin: var(--spacing-sm) 0;">${event.description}</p>
@@ -1384,39 +1391,39 @@ const app = {
             </div>
         `;
 
-            modal.classList.add('active');
-        },
+        modal.classList.add('active');
+    },
 
-        closeEventDetail() {
-            const modal = document.getElementById('event-detail-modal');
-            modal.classList.remove('active');
-        },
+    closeEventDetail() {
+        const modal = document.getElementById('event-detail-modal');
+        modal.classList.remove('active');
+    },
 
-        showCreateEvent() {
-            const modal = document.getElementById('create-event-modal');
-            modal.classList.add('active');
-        },
+    showCreateEvent() {
+        const modal = document.getElementById('create-event-modal');
+        modal.classList.add('active');
+    },
 
-        closeCreateEvent() {
-            const modal = document.getElementById('create-event-modal');
-            modal.classList.remove('active');
-        },
+    closeCreateEvent() {
+        const modal = document.getElementById('create-event-modal');
+        modal.classList.remove('active');
+    },
 
-        // ===== GESTIÓN DE CANDIDATOS (OFERENTES) =====
-        manageEventApplicants(eventId) {
-            const event = DataService.getEventById(eventId);
-            if (!event) return;
+    // ===== GESTIÓN DE CANDIDATOS (OFERENTES) =====
+    manageEventApplicants(eventId) {
+        const event = DataService.getEventById(eventId);
+        if (!event) return;
 
-            const modal = document.getElementById('event-detail-modal');
-            const content = document.getElementById('event-detail-content');
-            const applicants = event.applicants || [];
+        const modal = document.getElementById('event-detail-modal');
+        const content = document.getElementById('event-detail-content');
+        const applicants = event.applicants || [];
 
-            if (applicants.length === 0) {
-                this.showToast('No hay candidaturas para este evento', 'info');
-                return;
-            }
+        if (applicants.length === 0) {
+            this.showToast('No hay candidaturas para este evento', 'info');
+            return;
+        }
 
-            content.innerHTML = `
+        content.innerHTML = `
             <div class="event-detail">
                 <h3>Gestionar Candidatos: ${event.title}</h3>
                 <p style="color: var(--color-text-secondary); margin: var(--spacing-sm) 0;">
@@ -1425,14 +1432,14 @@ const app = {
                 
                 <div style="margin-top: var(--spacing-lg);">
                     ${applicants.map(applicant => {
-                const user = DataService.getUserById(applicant.userId);
-                if (!user) return '';
+            const user = DataService.getUserById(applicant.userId);
+            if (!user) return '';
 
-                return `
+            return `
                             <div class="card mb-md" style="border-left: 4px solid ${applicant.status === 'ACEPTADO' ? 'var(--color-success)' :
-                        applicant.status === 'RECHAZADO' ? 'var(--color-error)' :
-                            'var(--color-warning)'
-                    };">
+                    applicant.status === 'RECHAZADO' ? 'var(--color-error)' :
+                        'var(--color-warning)'
+                };">
                                 <div style="display: flex; justify-content: space-between; align-items: start;">
                                     <div style="display: flex; gap: var(--spacing-md); align-items: center;">
                                         <img src="${user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`}" 
@@ -1450,9 +1457,9 @@ const app = {
                                         </div>
                                     </div>
                                     <span class="badge badge-${applicant.status === 'ACEPTADO' ? 'success' :
-                        applicant.status === 'RECHAZADO' ? 'error' :
-                            'warning'
-                    }">
+                    applicant.status === 'RECHAZADO' ? 'error' :
+                        'warning'
+                }">
                                         ${applicant.status}
                                     </span>
                                 </div>
@@ -1472,70 +1479,70 @@ const app = {
                                 ` : ''}
                             </div>
                         `;
-            }).join('')}
+        }).join('')}
                 </div>
             </div>
         `;
 
-            modal.classList.add('active');
-        },
+        modal.classList.add('active');
+    },
 
-        acceptApplicant(eventId, userId) {
-            if (DataService.acceptApplicant(eventId, userId)) {
-                // Crear notificación para el buscador aceptado
-                const event = DataService.getEventById(eventId);
-                const user = DataService.getUserById(userId);
-                DataService.createNotification({
-                    userId: userId,
-                    type: 'APPLICATION_ACCEPTED',
-                    title: '✅ ¡Has sido aceptado!',
-                    message: `Has sido aceptado en el evento "${event.title}". Fecha: ${this.formatDate(event.date)} a las ${event.time}. Ubicación: ${event.location}`,
-                    relatedId: eventId
-                });
-
-                this.showToast('Candidato aceptado', 'success');
-                this.manageEventApplicants(eventId); // Recargar
-                this.loadApplicationsView(); // Actualizar lista
-            } else {
-                this.showToast('Error al aceptar candidato', 'error');
-            }
-        },
-
-        rejectApplicant(eventId, userId) {
-            if (DataService.rejectApplicant(eventId, userId)) {
-                // Crear notificación para el buscador rechazado
-                const event = DataService.getEventById(eventId);
-                const user = DataService.getUserById(userId);
-                DataService.createNotification({
-                    userId: userId,
-                    type: 'APPLICATION_REJECTED',
-                    title: '❌ Candidatura no aceptada',
-                    message: `Tu candidatura para el evento "${event.title}" no ha sido aceptada. Sigue explorando otros eventos.`,
-                    relatedId: eventId
-                });
-
-                this.showToast('Candidato rechazado', 'info');
-                this.manageEventApplicants(eventId); // Recargar
-                this.loadApplicationsView(); // Actualizar lista
-            } else {
-                this.showToast('Error al rechazar candidato', 'error');
-            }
-        },
-
-        viewApplicantProfile(userId) {
+    acceptApplicant(eventId, userId) {
+        if (DataService.acceptApplicant(eventId, userId)) {
+            // Crear notificación para el buscador aceptado
+            const event = DataService.getEventById(eventId);
             const user = DataService.getUserById(userId);
-            if (!user) return;
+            DataService.createNotification({
+                userId: userId,
+                type: 'APPLICATION_ACCEPTED',
+                title: '✅ ¡Has sido aceptado!',
+                message: `Has sido aceptado en el evento "${event.title}". Fecha: ${this.formatDate(event.date)} a las ${event.time}. Ubicación: ${event.location}`,
+                relatedId: eventId
+            });
 
-            const modal = document.getElementById('event-detail-modal');
-            const content = document.getElementById('event-detail-content');
+            this.showToast('Candidato aceptado', 'success');
+            this.manageEventApplicants(eventId); // Recargar
+            this.loadApplicationsView(); // Actualizar lista
+        } else {
+            this.showToast('Error al aceptar candidato', 'error');
+        }
+    },
 
-            const verificationBadge = user.verified === 'VERIFICADO'
-                ? '<span class="verification-badge">✓ Verificado</span>'
-                : user.verified === 'PENDIENTE'
-                    ? '<span class="badge badge-warning">⏳ Verificación pendiente</span>'
-                    : '<span class="badge" style="background: var(--color-error);">❌ No verificado</span>';
+    rejectApplicant(eventId, userId) {
+        if (DataService.rejectApplicant(eventId, userId)) {
+            // Crear notificación para el buscador rechazado
+            const event = DataService.getEventById(eventId);
+            const user = DataService.getUserById(userId);
+            DataService.createNotification({
+                userId: userId,
+                type: 'APPLICATION_REJECTED',
+                title: '❌ Candidatura no aceptada',
+                message: `Tu candidatura para el evento "${event.title}" no ha sido aceptada. Sigue explorando otros eventos.`,
+                relatedId: eventId
+            });
 
-            content.innerHTML = `
+            this.showToast('Candidato rechazado', 'info');
+            this.manageEventApplicants(eventId); // Recargar
+            this.loadApplicationsView(); // Actualizar lista
+        } else {
+            this.showToast('Error al rechazar candidato', 'error');
+        }
+    },
+
+    viewApplicantProfile(userId) {
+        const user = DataService.getUserById(userId);
+        if (!user) return;
+
+        const modal = document.getElementById('event-detail-modal');
+        const content = document.getElementById('event-detail-content');
+
+        const verificationBadge = user.verified === 'VERIFICADO'
+            ? '<span class="verification-badge">✓ Verificado</span>'
+            : user.verified === 'PENDIENTE'
+                ? '<span class="badge badge-warning">⏳ Verificación pendiente</span>'
+                : '<span class="badge" style="background: var(--color-error);">❌ No verificado</span>';
+
+        content.innerHTML = `
             <div class="profile-grid">
                 <div class="profile-main">
                     <div class="card profile-header">
@@ -1632,80 +1639,80 @@ const app = {
             </div>
         `;
 
-            modal.classList.add('active');
-        },
+        modal.classList.add('active');
+    },
 
-        deleteUser(userId) {
-            if (!confirm('¿Seguro que quieres eliminar este usuario?')) return;
-            DataService.deleteUser(userId);
-            this.switchAdminTab('users');
-            this.showToast('Usuario eliminado', 'success');
-        },
+    deleteUser(userId) {
+        if (!confirm('¿Seguro que quieres eliminar este usuario?')) return;
+        DataService.deleteUser(userId);
+        this.switchAdminTab('users');
+        this.showToast('Usuario eliminado', 'success');
+    },
 
-        deleteEvent(eventId) {
-            if (!confirm('¿Seguro que quieres eliminar este evento?')) return;
-            DataService.deleteEvent(eventId);
-            this.switchAdminTab('events');
-            this.showToast('Evento eliminado', 'success');
-        },
+    deleteEvent(eventId) {
+        if (!confirm('¿Seguro que quieres eliminar este evento?')) return;
+        DataService.deleteEvent(eventId);
+        this.switchAdminTab('events');
+        this.showToast('Evento eliminado', 'success');
+    },
 
-        // ===== CREAR EVENTOS =====
-        showCreateEvent() {
-            const modal = document.getElementById('create-event-modal');
-            modal.classList.add('active');
-        },
+    // ===== CREAR EVENTOS =====
+    showCreateEvent() {
+        const modal = document.getElementById('create-event-modal');
+        modal.classList.add('active');
+    },
 
-        closeCreateEvent() {
-            const modal = document.getElementById('create-event-modal');
-            modal.classList.remove('active');
-        },
+    closeCreateEvent() {
+        const modal = document.getElementById('create-event-modal');
+        modal.classList.remove('active');
+    },
 
     async handleCreateEvent(event) {
-            event.preventDefault();
+        event.preventDefault();
 
-            const title = document.getElementById('event-title').value;
-            const date = document.getElementById('event-date').value;
-            const time = document.getElementById('event-time').value;
-            const location = document.getElementById('event-location').value;
+        const title = document.getElementById('event-title').value;
+        const date = document.getElementById('event-date').value;
+        const time = document.getElementById('event-time').value;
+        const location = document.getElementById('event-location').value;
 
-            let type = 'TRADICIONAL'; // Valor por defecto
-            const typeInput = document.querySelector('input[name="gangbang-level"]:checked');
-            if (typeInput) {
-                type = typeInput.value;
-            }
-
-            const capacity = document.getElementById('event-capacity').value;
-            const zone = document.getElementById('event-zone').value;
-            const description = document.getElementById('event-description').value;
-            const rules = document.getElementById('event-rules').value;
-
-            try {
-                this.showToast('Creando evento...', 'info');
-
-                await SupabaseService.createEvent({
-                    title,
-                    date,
-                    time,
-                    location,
-                    gangbang_level: type, // Mapeo al nombre de col en Supabase
-                    capacity: parseInt(capacity),
-                    zone,
-                    description,
-                    rules
-                }, AppState.currentUser.id);
-
-                this.showToast('¡Evento creado exitosamente!', 'success');
-                this.closeCreateEvent();
-                // Ir a mis eventos
-                this.showView('applications'); // Recargará la vista automáticamente
-            } catch (error) {
-                console.error('Error creando evento:', error);
-                this.showToast('Error al crear el evento', 'error');
-            }
+        let type = 'TRADICIONAL'; // Valor por defecto
+        const typeInput = document.querySelector('input[name="gangbang-level"]:checked');
+        if (typeInput) {
+            type = typeInput.value;
         }
-    };
 
-    // Inicializar cuando el DOM esté listo
-    document.addEventListener('DOMContentLoaded', () => {
-        app.init();
-    });
+        const capacity = document.getElementById('event-capacity').value;
+        const zone = document.getElementById('event-zone').value;
+        const description = document.getElementById('event-description').value;
+        const rules = document.getElementById('event-rules').value;
+
+        try {
+            this.showToast('Creando evento...', 'info');
+
+            await SupabaseService.createEvent({
+                title,
+                date,
+                time,
+                location,
+                gangbang_level: type, // Mapeo al nombre de col en Supabase
+                capacity: parseInt(capacity),
+                zone,
+                description,
+                rules
+            }, AppState.currentUser.id);
+
+            this.showToast('¡Evento creado exitosamente!', 'success');
+            this.closeCreateEvent();
+            // Ir a mis eventos
+            this.showView('applications'); // Recargará la vista automáticamente
+        } catch (error) {
+            console.error('Error creando evento:', error);
+            this.showToast('Error al crear el evento', 'error');
+        }
+    }
+};
+
+// Inicializar cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', () => {
+    app.init();
+});
