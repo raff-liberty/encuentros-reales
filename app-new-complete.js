@@ -890,7 +890,9 @@ const app = {
                     <div style="display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-md);">
                         <button class="btn btn-secondary" onclick="app.showEventDetail('${event.id}')">Ver detalles</button>
                         ${applicants.length > 0 ? `
-                            <button class="btn btn-primary" onclick="app.manageEventApplicants(\`${event.id}\`)">Gestionar candidatos</button>
+                            <button class="btn btn-primary" onclick="if(window.showApplicants) { window.showApplicants(this); } else { alert('Error: Función no cargada. Recarga la página.'); }" data-event-id="${event.id}">
+                                Gestionar candidatos (${applicants.length})
+                            </button>
                         ` : ''}
                     </div>
                 </div>
