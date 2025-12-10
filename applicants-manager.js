@@ -69,6 +69,9 @@ function renderApplicantCard(application, eventId) {
                         </div>
                     </div>
                     ${user.bio ? `<p style="color: #999; font-size: 14px; margin-top: 8px;">${user.bio}</p>` : ''}
+                    <button class="btn btn-secondary btn-small" style="margin-top: 8px;" onclick="app.viewUserProfile('${user.id}')">
+                        👤 Ver perfil completo
+                    </button>
                 </div>
                 ${status === 'PENDIENTE' ? `
                     <div style="display: flex; gap: 8px;">
