@@ -249,12 +249,12 @@ const SupabaseService = {
         return data;
     },
 
-    async createEvent(eventData, organizerId) {
+    async createEvent(eventData, userId) {
         const { data, error } = await supabaseClient
             .from('events')
             .insert([{
                 ...eventData,
-                organizer_id: organizerId,
+                organizer_id: userId,
                 status: 'ACTIVO'
             }])
             .select()

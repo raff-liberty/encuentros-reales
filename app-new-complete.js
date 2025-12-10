@@ -2135,6 +2135,11 @@ const app = {
     closeEventDetail() {
         const modal = document.getElementById('event-detail-modal');
         modal.classList.remove('active');
+
+        // Si estamos en la vista de mis eventos, recargar para actualizar contadores
+        if (AppState.currentView === 'applications' && AppState.currentUser.role === 'OFERENTE') {
+            this.loadMyEventsView();
+        }
     },
 
     showCreateEvent() {
@@ -2264,6 +2269,22 @@ const app = {
             await SupabaseService.acceptApplicant(eventId, userId);
 
             this.showToast('Candidato aceptado exitosamente', 'success');
+
+            // Verificar si se alcanzó la capacidad para cerrar evento
+            const [event, applications] = await Promise.all([
+                SupabaseService.getEventById(eventId),
+                SupabaseService.getEventApplications(eventId)
+            ]);
+
+            const acceptedCount = applications.filter(a => a.status === 'ACEPTADO').length;
+
+            if (event && acceptedCount >= event.capacity) {
+                // Cerrar evento automáticamente
+                // Asumimos que existe updateEventStatus o usamos updateEvent
+                await SupabaseService.updateEvent(eventId, { status: 'CERRADO' }); // O FINALIZADO? CERRADO parece mejor para "no más gente"
+                this.showToast('🔒 ¡Evento cerrado por completarse el aforo!', 'info');
+            }
+
             // Recargar la lista
             this.manageEventApplicants(eventId);
         } catch (error) {
