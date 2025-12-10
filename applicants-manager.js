@@ -182,7 +182,8 @@ window.finalizeEventManager = async function (eventId) {
         } else {
             // Cerrar modal actual y abrir el de valoración
             document.getElementById('applicants-modal').remove();
-            showRatingModal(eventId, accepted);
+            // PASAMOS flag true para indicar que esto DEBE finalizar el evento
+            showRatingModal(eventId, accepted, true);
         }
     } catch (error) {
         alert('Error: ' + error.message);
@@ -190,16 +191,18 @@ window.finalizeEventManager = async function (eventId) {
 };
 
 // ===== MODAL DE VALORACIÓN =====
-window.showRatingModal = function (eventId, participants) {
+window.showRatingModal = function (eventId, participants, isFinishingEvent = false) {
     const modal = document.createElement('div');
     modal.className = 'modal active';
     modal.id = 'rating-modal';
     modal.style.display = 'flex';
+    // Guardamos el flag en el dataset del modal
+    modal.dataset.isFinishing = isFinishingEvent ? 'true' : 'false';
 
     modal.innerHTML = `
         <div class="modal-content" style="max-width: 600px; background: #2a1b3d;">
             <div class="modal-header">
-                <h2>Valorar participantes</h2>
+                <h2>${isFinishingEvent ? 'Valorar participantes y Finalizar' : 'Valorar Organizador'}</h2>
             </div>
             <div class="modal-body">
                 ${participants.map(app => renderRatingCard(app)).join('')}
@@ -234,7 +237,7 @@ window.renderRatingCard = function (application) {
                 <input type="hidden" id="rating-${user.id}" value="0">
             </div>
             
-            <textarea id="comment-${user.id}" placeholder="Comentario sobre su comportamiento..." 
+            <textarea id="comment-${user.id}" placeholder="Comentario opcional..." 
                 style="width: 100%; background: rgba(255,255,255,0.1); border: none; padding: 10px; color: white; border-radius: 5px; min-height: 60px;"></textarea>
         </div>
     `;
@@ -292,20 +295,18 @@ window.submitRatings = async function (eventId) {
             app.showToast('¡Valoración guardada!', 'success');
         }
 
-        // SOLO si el que envía es el organizador del evento, finalizamos el evento.
-        // Verificamos si estamos en el "modo organizador" (cuando se pulsa Finalizar)
-        // O si simplemente es un participante valorando.
-        // HACK: Si el modal tiene título "Valorar participantes", es el organizador.
-        // Si no, asumimos que es participante -> organizador.
-        // MEJOR: Comprobar ownership del evento.
+        // RECUPERAMOS FLAGG DEL DOM
+        const isFinishing = document.getElementById('rating-modal').dataset.isFinishing === 'true';
 
-        const { data: event } = await SupabaseService.getEventById(eventId);
-        if (event && event.organizer_id === reviewerId) {
-            await SupabaseService.finalizeEvent(eventId);
-            app.showToast('¡Evento finalizado y valoraciones guardadas!', 'success');
-            app.loadMyEventsView(); // Refresh para organizador
+        if (isFinishing) {
+            const finalEvent = await SupabaseService.finalizeEvent(eventId);
+            console.log('Evento finalizado:', finalEvent);
+            app.showToast('¡Evento finalizado correctamente!', 'success');
+
+            // Importante: Refrescar la vista del organizador
+            if (app.loadMyEventsView) app.loadMyEventsView();
         } else {
-            // Es participante
+            // Es participante valorando a organizador
             // Refrescar vista de postulaciones si es necesario
             if (app.loadApplicationsView) app.loadApplicationsView();
         }
