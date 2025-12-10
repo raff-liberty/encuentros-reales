@@ -854,6 +854,13 @@ const app = {
             return '';
         }
 
+        // AUTO-CORRECCIÓN: Si el evento ya finalizó pero la postulación sigue en ACEPTADO (por el error de permisos anterior),
+        // tratamos la postulación como FINALIZADO visualmente.
+        let status = application.status;
+        if (status === 'ACEPTADO' && event.status === 'FINALIZADO') {
+            status = 'FINALIZADO';
+        }
+
         // El organizador necesitaría otro JOIN, por ahora solo mostramos info básica
         const statusColors = {
             'ACEPTADO': 'var(--color-success)',
@@ -918,31 +925,8 @@ const app = {
     `;
     },
 
-    async rateOrganizer(organizerId, eventId) {
-        if (window.showRatingModal) {
-            // Reusamos el modal de valoración pero adaptándolo para un solo "participante" (el organizador)
-            // Necesitamos fetch del profile del organizador primero
-            try {
-                const organizer = await SupabaseService.getUserById(organizerId); // Asegurarse que existe esta funcion o usar getEventById
-                // Hack: pasamos al organizador como un array de 1 "participante" para reusar showRatingModal
-                window.showRatingModal(eventId, [{
-                    applicant: organizer, // showRatingModal espera { applicant: user }
-                    status: 'ACEPTADO'
-                }]);
-
-                // Sobrescribimos submitRatings temporalmente o confiamos en que funcione igual
-                // submitRatings usa .rating-card y sus data-user-id. 
-                // data-user-id será el ID del organizador.
-                // submitRatings tomará reviewerId como el usuario actual (participante).
-                // reviewedId será el organizador.
-                // Debería funcionar TAL CUAL si el usuario actual está logueado correctamente.
-            } catch (e) {
-                console.error(e);
-                alert('Error cargando organizador');
-            }
-        } else {
-            alert('El módulo de valoración no está cargado. Recarga la página.');
-        }
+    rateOrganizer(organizerId, eventId) {
+        this.openRateModal(eventId, organizerId);
     },
 
     // ===== VISTA: MIS EVENTOS (OFERENTES) =====
