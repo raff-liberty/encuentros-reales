@@ -890,7 +890,7 @@ const app = {
                     <div style="display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-md);">
                         <button class="btn btn-secondary" onclick="app.showEventDetail('${event.id}')">Ver detalles</button>
                         ${applicants.length > 0 ? `
-                            <button class="btn btn-primary" onclick="app.manageEventApplicants('${event.id}')">Gestionar candidatos</button>
+                            <button class="btn btn-primary" onclick="app.manageEventApplicants(\`${event.id}\`)">Gestionar candidatos</button>
                         ` : ''}
                     </div>
                 </div>
