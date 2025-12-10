@@ -238,299 +238,340 @@ const app = {
         }
     },
 
-    renderNavigation() {
-        const user = AppState.currentUser;
-        if (!user) return;
-
-        // Referencias a tabs
-        const exploreTab = document.querySelector('[data-view="explore"]');
-        const favoritesTab = document.querySelector('[data-view="favorites"]');
-        const applicationsTab = document.querySelector('[data-view="applications"]');
-        const adminTab = document.querySelector('[data-view="admin"]');
-
-        // Lógica de visualización por ROL
-        if (user.role === 'OFERENTE') {
-            // Oferentes no exploran ni tienen favoritos (por ahora)
-            if (exploreTab) exploreTab.style.display = 'none';
-            if (favoritesTab) favoritesTab.style.display = 'none';
-
-            // Renombrar "Mis Postulaciones" a "Mis Eventos"
-            if (applicationsTab) {
-                applicationsTab.querySelector('span:nth-child(2)').textContent = 'Mis Eventos (Creados)';
-            }
-        } else {
-            // Buscadores ven todo
-            if (exploreTab) exploreTab.style.display = 'flex';
-            if (favoritesTab) favoritesTab.style.display = 'flex';
-
-            if (applicationsTab) {
-                const label = applicationsTab.querySelector('span:nth-child(2)');
-                if (label) label.textContent = 'Mis Postulaciones';
-            }
+    // Iniciar polling de notificaciones
+    if(this.notificationPoller) clearInterval(this.notificationPoller);
+this.notificationPoller = setInterval(() => {
+    if (AppState.currentUser) {
+        this.updateNotificationsBadge();
+        // Si el panel de notificaciones está abierto, recargarlo
+        const panel = document.getElementById('notifications-panel');
+        if (panel && !panel.classList.contains('hidden')) {
+            this.loadNotifications();
         }
-
-        // Mostrar tabs específicos ADMIN
-        if (adminTab) {
-            if (user.role === 'ADMIN') {
-                adminTab.classList.remove('hidden');
-                adminTab.style.display = 'flex';
-            } else {
-                adminTab.classList.add('hidden');
-                adminTab.style.display = 'none';
-            }
-        }
-
-        // Mostrar botón de Crear Evento si es permitido
-        const createBtn = document.getElementById('header-create-event');
-        if (createBtn) {
-            if (user.role === 'OFERENTE' || user.role === 'ADMIN') {
-                createBtn.classList.remove('hidden');
-            } else {
-                createBtn.classList.add('hidden');
-            }
-        }
+    }
+}, 30000); // 30 segundos
     },
+
+renderNavigation() {
+    const user = AppState.currentUser;
+    if (!user) return;
+
+    // Referencias a tabs
+    const exploreTab = document.querySelector('[data-view="explore"]');
+    const favoritesTab = document.querySelector('[data-view="favorites"]');
+    const applicationsTab = document.querySelector('[data-view="applications"]');
+    const adminTab = document.querySelector('[data-view="admin"]');
+
+    // Lógica de visualización por ROL
+    if (user.role === 'OFERENTE') {
+        // Oferentes no exploran ni tienen favoritos (por ahora)
+        if (exploreTab) exploreTab.style.display = 'none';
+        if (favoritesTab) favoritesTab.style.display = 'none';
+
+        // Renombrar "Mis Postulaciones" a "Mis Eventos"
+        if (applicationsTab) {
+            applicationsTab.querySelector('span:nth-child(2)').textContent = 'Mis Eventos (Creados)';
+        }
+    } else {
+        // Buscadores ven todo
+        if (exploreTab) exploreTab.style.display = 'flex';
+        if (favoritesTab) favoritesTab.style.display = 'flex';
+
+        if (applicationsTab) {
+            const label = applicationsTab.querySelector('span:nth-child(2)');
+            if (label) label.textContent = 'Mis Postulaciones';
+        }
+    }
+
+    // Mostrar tabs específicos ADMIN
+    if (adminTab) {
+        if (user.role === 'ADMIN') {
+            adminTab.classList.remove('hidden');
+            adminTab.style.display = 'flex';
+        } else {
+            adminTab.classList.add('hidden');
+            adminTab.style.display = 'none';
+        }
+    }
+
+    // Mostrar botón de Crear Evento si es permitido
+    const createBtn = document.getElementById('header-create-event');
+    if (createBtn) {
+        if (user.role === 'OFERENTE' || user.role === 'ADMIN') {
+            createBtn.classList.remove('hidden');
+        } else {
+            createBtn.classList.add('hidden');
+        }
+    }
+},
 
     async refreshUserApplications() {
-        if (!AppState.currentUser) return;
-        try {
-            const apps = await SupabaseService.getApplicationsByUser(AppState.currentUser.id);
-            AppState.myApplications = apps; // Cache en AppState
-            this.updateNavCounts();
-            // Si estamos en la vista de explorar, re-renderizar para actualizar botones
-            if (AppState.currentView === 'explore') {
-                this.loadExploreView();
-            }
-        } catch (e) {
-            console.error('Error refreshing applications:', e);
+    if (!AppState.currentUser) return;
+    try {
+        const apps = await SupabaseService.getApplicationsByUser(AppState.currentUser.id);
+        AppState.myApplications = apps; // Cache en AppState
+        this.updateNavCounts();
+        // Si estamos en la vista de explorar, re-renderizar para actualizar botones
+        if (AppState.currentView === 'explore') {
+            this.loadExploreView();
         }
-    },
+    } catch (e) {
+        console.error('Error refreshing applications:', e);
+    }
+},
 
-    updateNavCounts() {
-        try {
-            // Mis Postulaciones
-            const appsCount = document.getElementById('applications-count');
-            if (appsCount && AppState.myApplications) {
-                appsCount.textContent = AppState.myApplications.length;
-                appsCount.classList.remove('hidden');
-            }
+updateNavCounts() {
+    try {
+        // Mis Postulaciones
+        const appsCount = document.getElementById('applications-count');
+        if (appsCount && AppState.myApplications) {
+            appsCount.textContent = AppState.myApplications.length;
+            appsCount.classList.remove('hidden');
+        }
 
-            // Actualizar contador de notificaciones
-            this.updateNotificationsBadge();
-        } catch (e) { console.warn(e); }
-    },
+        // Actualizar contador de notificaciones
+        this.updateNotificationsBadge();
+    } catch (e) { console.warn(e); }
+},
 
     // ===== NOTIFICACIONES =====
-    updateNotificationsBadge() {
-        const user = AppState.currentUser;
-        const notifications = DataService.getNotificationsByUser(user.id);
+    // ===== NOTIFICACIONES =====
+    async updateNotificationsBadge() {
+    const user = AppState.currentUser;
+    if (!user) return;
+
+    try {
+        const notifications = await SupabaseService.getNotificationsByUser(user.id);
         const unreadCount = notifications.filter(n => !n.read).length;
 
         const badge = document.getElementById('notifications-badge');
-        if (unreadCount > 0) {
-            badge.textContent = unreadCount;
-            badge.classList.remove('hidden');
-        } else {
-            badge.classList.add('hidden');
+        if (badge) {
+            if (unreadCount > 0) {
+                badge.textContent = unreadCount;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
         }
-    },
+    } catch (e) {
+        console.warn('Error updating badge:', e);
+    }
+},
 
-    toggleNotifications() {
-        const panel = document.getElementById('notifications-panel');
-        const isHidden = panel.classList.contains('hidden');
+toggleNotifications() {
+    const panel = document.getElementById('notifications-panel');
+    const isHidden = panel.classList.contains('hidden');
 
-        if (isHidden) {
-            this.loadNotifications();
-            panel.classList.remove('hidden');
-        } else {
-            panel.classList.add('hidden');
-        }
-    },
+    if (isHidden) {
+        this.loadNotifications();
+        panel.classList.remove('hidden');
+    } else {
+        panel.classList.add('hidden');
+    }
+},
 
-    loadNotifications() {
-        const user = AppState.currentUser;
-        const notifications = DataService.getNotificationsByUser(user.id);
+    async loadNotifications() {
+    const user = AppState.currentUser;
+    if (!user) return; // Guard clause
+
+    try {
+        const notifications = await SupabaseService.getNotificationsByUser(user.id);
         const container = document.getElementById('notifications-list');
+
+        if (!container) return; // Guard clause if panel not in DOM
 
         if (notifications.length === 0) {
             container.innerHTML = `
-                <div class="empty-state" style="padding: var(--spacing-xl); text-align: center;">
-                    <div style="font-size: 48px; margin-bottom: var(--spacing-md);">🔔</div>
-                    <p style="color: var(--color-text-secondary);">No tienes notificaciones</p>
-                </div>
-            `;
+                    <div class="empty-state" style="padding: var(--spacing-xl); text-align: center;">
+                        <div style="font-size: 48px; margin-bottom: var(--spacing-md);">🔔</div>
+                        <p style="color: var(--color-text-secondary);">No tienes notificaciones</p>
+                    </div>
+                `;
             return;
         }
 
-        // Ordenar por fecha (más recientes primero)
-        notifications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        // Supabase returns dates as strings, sort works if ISO, but safer to new Date
+        // Supabase order() already handles this usually, but let's be safe
+        // notifications.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
         container.innerHTML = notifications.map(notif => `
-            <div class="notification-item ${notif.read ? 'read' : 'unread'}" onclick="app.handleNotificationClick('${notif.id}')">
-                <div class="notification-content">
-                    <h4 class="notification-title">${notif.title}</h4>
-                    <p class="notification-message">${notif.message}</p>
-                    <span class="notification-time">${this.getTimeAgo(notif.createdAt)}</span>
+                <div class="notification-item ${notif.read ? 'read' : 'unread'}" onclick="app.handleNotificationClick('${notif.id}')">
+                    <div class="notification-content">
+                        <h4 class="notification-title">${notif.title}</h4>
+                        <p class="notification-message">${notif.message}</p>
+                        <span class="notification-time">${this.getTimeAgo(notif.created_at)}</span>
+                    </div>
+                    ${!notif.read ? '<span class="notification-dot"></span>' : ''}
                 </div>
-                ${!notif.read ? '<span class="notification-dot"></span>' : ''}
-            </div>
-        `).join('');
-    },
+            `).join('');
 
-    handleNotificationClick(notificationId) {
+    } catch (error) {
+        console.error('Error loading notifications:', error);
+    }
+},
+
+    async handleNotificationClick(notificationId) {
+    try {
         // Marcar como leída
-        DataService.markNotificationAsRead(notificationId);
+        await SupabaseService.markNotificationAsRead(notificationId);
 
         // Actualizar vista
         this.loadNotifications();
         this.updateNotificationsBadge();
 
         // Obtener notificación para ver si tiene relatedId
-        const notifications = DataService.getNotificationsByUser(AppState.currentUser.id);
+        // Como ya la marcamos, podríamos optimizar pasando la notif por argumento, pero fetch es seguro
+        const notifications = await SupabaseService.getNotificationsByUser(AppState.currentUser.id);
         const notification = notifications.find(n => n.id === notificationId);
 
-        if (notification && notification.relatedId) {
+        if (notification && notification.related_id) { // related_id en DB vs relatedId en DataService
             // Cerrar panel
             document.getElementById('notifications-panel').classList.add('hidden');
+
+            const eventId = notification.related_id;
 
             // Navegar según el tipo
             if (notification.type === 'NEW_APPLICATION') {
                 // Ir a gestionar candidatos
                 this.showView('applications');
+                // Necesitamos esperar que cargue la vista
                 setTimeout(() => {
-                    this.manageEventApplicants(notification.relatedId);
-                }, 300);
-            } else if (notification.type === 'APPLICATION_ACCEPTED' || notification.type === 'APPLICATION_REJECTED') {
+                    this.manageEventApplicants(eventId);
+                }, 500);
+            } else if (notification.type === 'APPLICATION_ACCEPTED' || notification.type === 'APPLICATION_REJECTED' || notification.type === 'EVENT_FINISHED') {
                 // Ir a mis postulaciones
                 this.showView('applications');
+            } else if (notification.type === 'EVENT_SELECTION_CLOSED') {
+                this.showEventDetail(eventId);
             }
         }
-    },
+    } catch (e) {
+        console.error('Error click notification:', e);
+    }
+},
 
-    markAllNotificationsAsRead() {
-        const user = AppState.currentUser;
-        const notifications = DataService.getNotificationsByUser(user.id);
-
-        notifications.forEach(notif => {
-            if (!notif.read) {
-                DataService.markNotificationAsRead(notif.id);
-            }
-        });
-
+    async markAllNotificationsAsRead() {
+    const user = AppState.currentUser;
+    try {
+        await SupabaseService.markAllNotificationsAsRead(user.id);
         this.loadNotifications();
         this.updateNotificationsBadge();
         this.showToast('Todas las notificaciones marcadas como leídas', 'success');
-    },
+    } catch (e) {
+        console.error(e);
+    }
+},
 
-    getTimeAgo(date) {
-        const now = new Date();
-        const past = new Date(date);
-        const diffMs = now - past;
-        const diffMins = Math.floor(diffMs / 60000);
-        const diffHours = Math.floor(diffMs / 3600000);
-        const diffDays = Math.floor(diffMs / 86400000);
+getTimeAgo(date) {
+    if (!date) return '';
+    const now = new Date();
+    const past = new Date(date);
+    const diffMs = now - past;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
 
-        if (diffMins < 1) return 'Ahora mismo';
-        if (diffMins < 60) return `Hace ${diffMins} min`;
-        if (diffHours < 24) return `Hace ${diffHours}h`;
-        if (diffDays < 7) return `Hace ${diffDays}d`;
-        return this.formatDate(date);
-    },
+    if (diffMins < 1) return 'Ahora mismo';
+    if (diffMins < 60) return `Hace ${diffMins} min`;
+    if (diffHours < 24) return `Hace ${diffHours}h`;
+    if (diffDays < 7) return `Hace ${diffDays}d`;
+    return past.toLocaleDateString();
+},
 
-    // ===== NAVEGACIÓN =====
-    showView(viewName) {
-        // Ocultar todas las vistas
-        document.querySelectorAll('.view').forEach(view => {
-            view.classList.add('hidden');
-        });
+// ===== NAVEGACIÓN =====
+showView(viewName) {
+    // Ocultar todas las vistas
+    document.querySelectorAll('.view').forEach(view => {
+        view.classList.add('hidden');
+    });
 
-        // Desactivar todos los tabs
-        document.querySelectorAll('.nav-tab').forEach(tab => {
-            tab.classList.remove('active');
-        });
+    // Desactivar todos los tabs
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
 
-        // Mostrar vista seleccionada
-        const viewElement = document.getElementById(`view-${viewName}`);
-        if (viewElement) {
-            viewElement.classList.remove('hidden');
-        }
+    // Mostrar vista seleccionada
+    const viewElement = document.getElementById(`view-${viewName}`);
+    if (viewElement) {
+        viewElement.classList.remove('hidden');
+    }
 
-        // Activar tab correspondiente
-        const tabElement = document.querySelector(`[data-view="${viewName}"]`);
-        if (tabElement) {
-            tabElement.classList.add('active');
-        }
+    // Activar tab correspondiente
+    const tabElement = document.querySelector(`[data-view="${viewName}"]`);
+    if (tabElement) {
+        tabElement.classList.add('active');
+    }
 
-        AppState.currentView = viewName;
+    AppState.currentView = viewName;
 
-        // Cargar contenido de la vista
-        switch (viewName) {
-            case 'explore':
-                this.loadExploreView();
-                break;
-            case 'applications':
-                this.loadApplicationsView();
-                break;
-            case 'favorites':
-                this.loadFavoritesView();
-                break;
-            case 'profile':
-                this.loadProfileView();
-                break;
-            case 'admin':
-                this.loadAdminView();
-                break;
-        }
-    },
+    // Cargar contenido de la vista
+    switch (viewName) {
+        case 'explore':
+            this.loadExploreView();
+            break;
+        case 'applications':
+            this.loadApplicationsView();
+            break;
+        case 'favorites':
+            this.loadFavoritesView();
+            break;
+        case 'profile':
+            this.loadProfileView();
+            break;
+        case 'admin':
+            this.loadAdminView();
+            break;
+    }
+},
 
     // ===== VISTAS PRINCIPALES =====
     async loadExploreView() {
-        const container = document.getElementById('events-list');
-        container.innerHTML = '<div class="loader">Cargando eventos...</div>';
+    const container = document.getElementById('events-list');
+    container.innerHTML = '<div class="loader">Cargando eventos...</div>';
 
-        try {
-            // USAR SUPABASE
-            let events = await SupabaseService.getAllEvents();
+    try {
+        // USAR SUPABASE
+        let events = await SupabaseService.getAllEvents();
 
-            // Aplicar filtros locales (opcional: se podría filtrar en backend también)
-            if (AppState.filters.zone) {
-                events = events.filter(e => e.zone === AppState.filters.zone);
-            }
-            if (AppState.filters.type) {
-                // Mapear filtros de UI a valores de BD si es necesario
-                // Por ahora asumimos coincidencia directa
-                // events = events.filter(e => e.gangbang_level === AppState.filters.type);
-            }
+        // Aplicar filtros locales (opcional: se podría filtrar en backend también)
+        if (AppState.filters.zone) {
+            events = events.filter(e => e.zone === AppState.filters.zone);
+        }
+        if (AppState.filters.type) {
+            // Mapear filtros de UI a valores de BD si es necesario
+            // Por ahora asumimos coincidencia directa
+            // events = events.filter(e => e.gangbang_level === AppState.filters.type);
+        }
 
-            this.renderEvents(events);
-        } catch (error) {
-            console.error('Error cargando eventos:', error);
-            container.innerHTML = `<div class="error-msg" style="color: red; padding: 20px; text-align: center;">
+        this.renderEvents(events);
+    } catch (error) {
+        console.error('Error cargando eventos:', error);
+        container.innerHTML = `<div class="error-msg" style="color: red; padding: 20px; text-align: center;">
                 <h3>Error cargando eventos 😢</h3>
                 <p>${error.message || 'Error desconocido'}</p>
                 <small>Código: ${error.code || 'N/A'}</small>
             </div>`;
+    }
+},
+
+renderUserStats() {
+    const user = AppState.currentUser;
+    const statsContainer = document.getElementById('user-stats');
+
+    // Calcular próximo evento
+    const myApplications = DataService.getApplicationsByUser(user.id);
+    const acceptedApps = myApplications.filter(app => app.status === 'ACEPTADO');
+    let nextEventText = 'Ninguno';
+
+    if (acceptedApps.length > 0) {
+        const nextEvent = DataService.getEventById(acceptedApps[0].eventId);
+        if (nextEvent) {
+            const daysUntil = Math.ceil((new Date(nextEvent.date) - new Date()) / (1000 * 60 * 60 * 24));
+            nextEventText = daysUntil > 0 ? `En ${daysUntil} días` : 'Hoy';
         }
-    },
+    }
 
-    renderUserStats() {
-        const user = AppState.currentUser;
-        const statsContainer = document.getElementById('user-stats');
-
-        // Calcular próximo evento
-        const myApplications = DataService.getApplicationsByUser(user.id);
-        const acceptedApps = myApplications.filter(app => app.status === 'ACEPTADO');
-        let nextEventText = 'Ninguno';
-
-        if (acceptedApps.length > 0) {
-            const nextEvent = DataService.getEventById(acceptedApps[0].eventId);
-            if (nextEvent) {
-                const daysUntil = Math.ceil((new Date(nextEvent.date) - new Date()) / (1000 * 60 * 60 * 24));
-                nextEventText = daysUntil > 0 ? `En ${daysUntil} días` : 'Hoy';
-            }
-        }
-
-        statsContainer.innerHTML = `
+    statsContainer.innerHTML = `
             <div class="stat-card">
                 <div class="stat-icon">⭐</div>
                 <div class="stat-info">
@@ -553,13 +594,13 @@ const app = {
                 </div>
             </div>
         `;
-    },
+},
 
-    renderEvents(events) {
-        const container = document.getElementById('events-list');
+renderEvents(events) {
+    const container = document.getElementById('events-list');
 
-        if (events.length === 0) {
-            container.innerHTML = `
+    if (events.length === 0) {
+        container.innerHTML = `
                 <div class="card text-center" style="padding: var(--spacing-2xl);">
                     <div style="font-size: 48px; margin-bottom: var(--spacing-md);">🔍</div>
                     <h3>No hay eventos disponibles</h3>
@@ -568,19 +609,19 @@ const app = {
                     </p>
                 </div>
     `;
-            return;
-        }
+        return;
+    }
 
-        container.innerHTML = events.map(event => {
-            // El organizador viene populado por Supabase gracias al select con join
-            const organizer = event.organizer || { username: 'Desconocido' };
-            const isFavorite = AppState.favorites.includes(event.id);
-            const level = event.gangbang_level || event.gangbangLevel || 'TRADICIONAL';
-            const badgeColor = level === 'TRADICIONAL' ? 'var(--color-success)' :
-                level === 'SUMISO' ? 'var(--color-warning)' :
-                    'var(--color-info)';
+    container.innerHTML = events.map(event => {
+        // El organizador viene populado por Supabase gracias al select con join
+        const organizer = event.organizer || { username: 'Desconocido' };
+        const isFavorite = AppState.favorites.includes(event.id);
+        const level = event.gangbang_level || event.gangbangLevel || 'TRADICIONAL';
+        const badgeColor = level === 'TRADICIONAL' ? 'var(--color-success)' :
+            level === 'SUMISO' ? 'var(--color-warning)' :
+                'var(--color-info)';
 
-            return `
+        return `
                 <div class="event-card">
                     <button class="favorite-btn ${isFavorite ? 'active' : ''}" onclick="app.toggleFavorite('${event.id}')">
                         ${isFavorite ? '❤️' : '♡'}
@@ -619,121 +660,121 @@ const app = {
                     </div>
                 </div>
     `;
-        }).join('');
-    },
+    }).join('');
+},
 
-    renderApplyButton(event) {
-        if (!AppState.currentUser || AppState.currentUser.role !== 'BUSCADOR') return ''; // Solo buscadores
+renderApplyButton(event) {
+    if (!AppState.currentUser || AppState.currentUser.role !== 'BUSCADOR') return ''; // Solo buscadores
 
-        const myApp = (AppState.myApplications || []).find(a => a.event_id === event.id);
+    const myApp = (AppState.myApplications || []).find(a => a.event_id === event.id);
 
-        if (myApp) {
-            let label = 'Pendiente';
-            let style = 'background: var(--color-warning); color: black; opacity: 0.8; cursor: default;';
+    if (myApp) {
+        let label = 'Pendiente';
+        let style = 'background: var(--color-warning); color: black; opacity: 0.8; cursor: default;';
 
-            if (myApp.status === 'ACEPTADO') {
-                label = '¡Aceptado!';
-                style = 'background: var(--color-success); color: white; cursor: default;';
-            } else if (myApp.status === 'RECHAZADO') {
-                label = 'Rechazado';
-                style = 'background: var(--color-error); color: white; cursor: default;';
-            }
-
-            return `<button class="btn" style="${style}" disabled>${label}</button>`;
+        if (myApp.status === 'ACEPTADO') {
+            label = '¡Aceptado!';
+            style = 'background: var(--color-success); color: white; cursor: default;';
+        } else if (myApp.status === 'RECHAZADO') {
+            label = 'Rechazado';
+            style = 'background: var(--color-error); color: white; cursor: default;';
         }
 
-        return `<button class="btn btn-primary" onclick="app.applyToEvent('${event.id}')">Apuntarme ❤️</button>`;
-    },
+        return `<button class="btn" style="${style}" disabled>${label}</button>`;
+    }
 
-    // ===== FAVORITOS =====
-    toggleFavorite(eventId) {
-        const index = AppState.favorites.indexOf(eventId);
-        if (index > -1) {
-            AppState.favorites.splice(index, 1);
-            this.showToast('Eliminado de favoritos', 'info');
-        } else {
-            AppState.favorites.push(eventId);
-            this.showToast('Agregado a favoritos', 'success');
-        }
+    return `<button class="btn btn-primary" onclick="app.applyToEvent('${event.id}')">Apuntarme ❤️</button>`;
+},
 
-        localStorage.setItem('favorites', JSON.stringify(AppState.favorites));
+// ===== FAVORITOS =====
+toggleFavorite(eventId) {
+    const index = AppState.favorites.indexOf(eventId);
+    if (index > -1) {
+        AppState.favorites.splice(index, 1);
+        this.showToast('Eliminado de favoritos', 'info');
+    } else {
+        AppState.favorites.push(eventId);
+        this.showToast('Agregado a favoritos', 'success');
+    }
 
-        // Recargar vista actual
-        if (AppState.currentView === 'explore') {
-            this.loadExploreView();
-        } else if (AppState.currentView === 'favorites') {
-            this.loadFavoritesView();
-        }
-    },
+    localStorage.setItem('favorites', JSON.stringify(AppState.favorites));
 
-    // ===== FILTROS =====
-    toggleFilters() {
-        const panel = document.getElementById('filters-panel');
-        panel.classList.toggle('hidden');
-    },
-
-    applyFilters() {
-        AppState.filters.type = document.getElementById('filter-type').value;
-        AppState.filters.zone = document.getElementById('filter-zone').value;
-        this.toggleFilters();
+    // Recargar vista actual
+    if (AppState.currentView === 'explore') {
         this.loadExploreView();
-        this.showToast('Filtros aplicados', 'success');
-    },
+    } else if (AppState.currentView === 'favorites') {
+        this.loadFavoritesView();
+    }
+},
+
+// ===== FILTROS =====
+toggleFilters() {
+    const panel = document.getElementById('filters-panel');
+    panel.classList.toggle('hidden');
+},
+
+applyFilters() {
+    AppState.filters.type = document.getElementById('filter-type').value;
+    AppState.filters.zone = document.getElementById('filter-zone').value;
+    this.toggleFilters();
+    this.loadExploreView();
+    this.showToast('Filtros aplicados', 'success');
+},
 
     // ===== POSTULARSE A EVENTO =====
     async applyToEvent(eventId) {
-        if (!AppState.currentUser) return;
+    if (!AppState.currentUser) return;
 
-        // Confirmar acción
-        if (!confirm('¿Estás seguro/a de que quieres postularte a este evento?')) {
-            return;
+    // Confirmar acción
+    if (!confirm('¿Estás seguro/a de que quieres postularte a este evento?')) {
+        return;
+    }
+
+    try {
+        this.showToast('Enviando postulación...', 'info');
+        await SupabaseService.createApplication(AppState.currentUser.id, eventId);
+
+        this.showToast('¡Postulación enviada con éxito!', 'success');
+        // Recargar vista para actualizar UI
+        this.loadExploreView();
+    } catch (error) {
+        console.error('Error al postularse:', error);
+        console.error('Error details:', {
+            message: error.message,
+            code: error.code,
+            details: error.details,
+            hint: error.hint
+        });
+
+        if (error.code === '23505') { // Unique violation en Postgres/Supabase
+            this.showToast('Ya te has postulado a este evento', 'warning');
+        } else {
+            // Mostrar error específico al usuario
+            const errorMsg = error.message || error.hint || 'Error desconocido';
+            this.showToast(`Error: ${errorMsg}`, 'error');
         }
-
-        try {
-            this.showToast('Enviando postulación...', 'info');
-            await SupabaseService.createApplication(AppState.currentUser.id, eventId);
-
-            this.showToast('¡Postulación enviada con éxito!', 'success');
-            // Recargar vista para actualizar UI
-            this.loadExploreView();
-        } catch (error) {
-            console.error('Error al postularse:', error);
-            console.error('Error details:', {
-                message: error.message,
-                code: error.code,
-                details: error.details,
-                hint: error.hint
-            });
-
-            if (error.code === '23505') { // Unique violation en Postgres/Supabase
-                this.showToast('Ya te has postulado a este evento', 'warning');
-            } else {
-                // Mostrar error específico al usuario
-                const errorMsg = error.message || error.hint || 'Error desconocido';
-                this.showToast(`Error: ${errorMsg}`, 'error');
-            }
-        }
-    },
+    }
+},
 
     // ===== VISTA: MIS POSTULACIONES / MIS EVENTOS =====
     async loadApplicationsView() {
-        const user = AppState.currentUser;
-        const container = document.getElementById('applications-list');
+    const user = AppState.currentUser;
+    const container = document.getElementById('applications-list');
 
-        // Si es OFERENTE, mostrar sus eventos creados
-        if (user.role === 'OFERENTE' || user.role === 'ADMIN') {
-            this.loadMyEventsView();
-            return;
-        }
+    // Si es OFERENTE, mostrar sus eventos creados
+    if (user.role === 'OFERENTE' || user.role === 'ADMIN') {
+        this.loadMyEventsView();
+        return;
+    }
 
-        // Si es BUSCADOR, mostrar sus postulaciones desde Supabase
-        try {
-            container.innerHTML = '<div class="loader">Cargando postulaciones...</div>';
+    // Si es BUSCADOR, mostrar sus postulaciones desde Supabase
+    try {
+        container.innerHTML = '<div class="loader">Cargando postulaciones...</div>';
 
-            const applications = await SupabaseService.getApplicationsByUser(user.id);
+        const applications = await SupabaseService.getApplicationsByUser(user.id);
 
-            if (applications.length === 0) {
-                container.innerHTML = `
+        if (applications.length === 0) {
+            container.innerHTML = `
                     <div class="card text-center" style="padding: var(--spacing-2xl);">
                         <div style="font-size: 48px; margin-bottom: var(--spacing-md);">📋</div>
                         <h3>No tienes postulaciones</h3>
@@ -743,22 +784,22 @@ const app = {
                         <button class="btn btn-primary mt-md" onclick="app.showView('explore')">Explorar eventos</button>
                     </div>
         `;
-                return;
-            }
+            return;
+        }
 
-            // Agrupar por estado
-            const pending = applications.filter(app => app.status === 'PENDIENTE');
-            const accepted = applications.filter(app => app.status === 'ACEPTADO');
-            const rejected = applications.filter(app => app.status === 'RECHAZADO');
+        // Agrupar por estado
+        const pending = applications.filter(app => app.status === 'PENDIENTE');
+        const accepted = applications.filter(app => app.status === 'ACEPTADO');
+        const rejected = applications.filter(app => app.status === 'RECHAZADO');
 
-            container.innerHTML = `
+        container.innerHTML = `
                 ${accepted.length > 0 ? `
                     <h3 style="margin-bottom: var(--spacing-md); color: var(--color-success);">
                         ✅ Aceptadas (${accepted.length})
                     </h3>
                     ${accepted.map(app => this.renderApplicationCard(app, 'ACEPTADO')).join('')}
                 ` : ''
-                }
+            }
                 
                 ${pending.length > 0 ? `
                     <h3 style="margin-bottom: var(--spacing-md); margin-top: var(--spacing-xl); color: var(--color-warning);">
@@ -766,7 +807,7 @@ const app = {
                     </h3>
                     ${pending.map(app => this.renderApplicationCard(app, 'PENDIENTE')).join('')}
                 ` : ''
-                }
+            }
                 
                 ${rejected.length > 0 ? `
                     <h3 style="margin-bottom: var(--spacing-md); margin-top: var(--spacing-xl); color: var(--color-error);">
@@ -774,14 +815,14 @@ const app = {
                     </h3>
                     ${rejected.map(app => this.renderApplicationCard(app, 'RECHAZADO')).join('')}
                 ` : ''
-                }
+            }
 `;
 
-            // Actualizar contador
-            document.getElementById('applications-count').textContent = applications.length;
-        } catch (error) {
-            console.error('Error cargando postulaciones:', error);
-            container.innerHTML = `
+        // Actualizar contador
+        document.getElementById('applications-count').textContent = applications.length;
+    } catch (error) {
+        console.error('Error cargando postulaciones:', error);
+        container.innerHTML = `
                 <div class="card text-center" style="padding: var(--spacing-2xl);">
                     <div style="font-size: 48px; margin-bottom: var(--spacing-md);">😢</div>
                     <h3>Error cargando postulaciones</h3>
@@ -790,26 +831,26 @@ const app = {
                     </p>
                 </div>
             `;
-        }
-    },
+    }
+},
 
-    renderApplicationCard(application, status) {
-        // En Supabase, el evento viene como application.event gracias al JOIN
-        const event = application.event;
-        if (!event) {
-            console.error('Event not found for application:', application);
-            return '';
-        }
+renderApplicationCard(application, status) {
+    // En Supabase, el evento viene como application.event gracias al JOIN
+    const event = application.event;
+    if (!event) {
+        console.error('Event not found for application:', application);
+        return '';
+    }
 
-        // El organizador necesitaría otro JOIN, por ahora solo mostramos info básica
-        const statusColors = {
-            'ACEPTADO': 'var(--color-success)',
-            'FINALIZADO': 'var(--color-success)', // Mismo color éxito
-            'PENDIENTE': 'var(--color-warning)',
-            'RECHAZADO': 'var(--color-error)'
-        };
+    // El organizador necesitaría otro JOIN, por ahora solo mostramos info básica
+    const statusColors = {
+        'ACEPTADO': 'var(--color-success)',
+        'FINALIZADO': 'var(--color-success)', // Mismo color éxito
+        'PENDIENTE': 'var(--color-warning)',
+        'RECHAZADO': 'var(--color-error)'
+    };
 
-        return `
+    return `
             <div class="card mb-md" style="border-left: 4px solid ${statusColors[status] || 'var(--color-text-secondary)'};">
                 <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--spacing-md);">
                     <div>
@@ -863,57 +904,57 @@ const app = {
                 ` : ''}
             </div>
     `;
-    },
+},
 
     async rateOrganizer(organizerId, eventId) {
-        if (window.showRatingModal) {
-            // Reusamos el modal de valoración pero adaptándolo para un solo "participante" (el organizador)
-            // Necesitamos fetch del profile del organizador primero
-            try {
-                const organizer = await SupabaseService.getUserById(organizerId); // Asegurarse que existe esta funcion o usar getEventById
-                // Hack: pasamos al organizador como un array de 1 "participante" para reusar showRatingModal
-                window.showRatingModal(eventId, [{
-                    applicant: organizer, // showRatingModal espera { applicant: user }
-                    status: 'ACEPTADO'
-                }]);
+    if (window.showRatingModal) {
+        // Reusamos el modal de valoración pero adaptándolo para un solo "participante" (el organizador)
+        // Necesitamos fetch del profile del organizador primero
+        try {
+            const organizer = await SupabaseService.getUserById(organizerId); // Asegurarse que existe esta funcion o usar getEventById
+            // Hack: pasamos al organizador como un array de 1 "participante" para reusar showRatingModal
+            window.showRatingModal(eventId, [{
+                applicant: organizer, // showRatingModal espera { applicant: user }
+                status: 'ACEPTADO'
+            }]);
 
-                // Sobrescribimos submitRatings temporalmente o confiamos en que funcione igual
-                // submitRatings usa .rating-card y sus data-user-id. 
-                // data-user-id será el ID del organizador.
-                // submitRatings tomará reviewerId como el usuario actual (participante).
-                // reviewedId será el organizador.
-                // Debería funcionar TAL CUAL si el usuario actual está logueado correctamente.
-            } catch (e) {
-                console.error(e);
-                alert('Error cargando organizador');
-            }
-        } else {
-            alert('El módulo de valoración no está cargado. Recarga la página.');
+            // Sobrescribimos submitRatings temporalmente o confiamos en que funcione igual
+            // submitRatings usa .rating-card y sus data-user-id. 
+            // data-user-id será el ID del organizador.
+            // submitRatings tomará reviewerId como el usuario actual (participante).
+            // reviewedId será el organizador.
+            // Debería funcionar TAL CUAL si el usuario actual está logueado correctamente.
+        } catch (e) {
+            console.error(e);
+            alert('Error cargando organizador');
         }
-    },
+    } else {
+        alert('El módulo de valoración no está cargado. Recarga la página.');
+    }
+},
 
     // ===== VISTA: MIS EVENTOS (OFERENTES) =====
     async loadMyEventsView() {
-        const user = AppState.currentUser;
-        const container = document.getElementById('applications-list');
+    const user = AppState.currentUser;
+    const container = document.getElementById('applications-list');
 
-        // Verificar que el contenedor existe
-        if (!container) {
-            console.error('Container applications-list not found');
-            return;
-        }
+    // Verificar que el contenedor existe
+    if (!container) {
+        console.error('Container applications-list not found');
+        return;
+    }
 
-        // Mostrar spinner de carga
-        container.innerHTML = '<div class="loading-spinner"></div>';
+    // Mostrar spinner de carga
+    container.innerHTML = '<div class="loading-spinner"></div>';
 
-        console.log('Cargando eventos para organizador:', user.id);
+    console.log('Cargando eventos para organizador:', user.id);
 
-        try {
-            const myEvents = await SupabaseService.getEventsByCreator(user.id);
-            console.log('Eventos recuperados:', myEvents);
+    try {
+        const myEvents = await SupabaseService.getEventsByCreator(user.id);
+        console.log('Eventos recuperados:', myEvents);
 
-            if (myEvents.length === 0) {
-                container.innerHTML = `
+        if (myEvents.length === 0) {
+            container.innerHTML = `
                 <div class="card text-center" style="padding: var(--spacing-2xl);">
                     <div style="font-size: 48px; margin-bottom: var(--spacing-md);">📅</div>
                     <h3>No has creado eventos</h3>
@@ -923,15 +964,15 @@ const app = {
                     <button class="btn btn-primary mt-md" onclick="app.showCreateEvent()">Crear Evento</button>
                 </div>
             `;
-                return;
-            }
+            return;
+        }
 
-            container.innerHTML = myEvents.map(event => {
-                const applicants = event.applicants || [];
-                const pendingCount = applicants.filter(a => a.status === 'PENDIENTE').length;
-                const acceptedCount = applicants.filter(a => a.status === 'ACEPTADO').length;
+        container.innerHTML = myEvents.map(event => {
+            const applicants = event.applicants || [];
+            const pendingCount = applicants.filter(a => a.status === 'PENDIENTE').length;
+            const acceptedCount = applicants.filter(a => a.status === 'ACEPTADO').length;
 
-                return `
+            return `
                 <div class="card mb-md">
                     <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--spacing-md);">
                         <div>
@@ -990,38 +1031,38 @@ const app = {
                     </div>
                 </div>
             `;
-            }).join('');
+        }).join('');
 
-            // Actualizar contador
-            document.getElementById('applications-count').textContent = myEvents.length;
-        } catch (error) {
-            console.error('Error cargando eventos:', error);
-            container.innerHTML = '<div class="text-center" style="padding: 20px; color: var(--color-error);">Error cargando tus eventos. Por favor recarga la página.</div>';
-        }
-    },
+        // Actualizar contador
+        document.getElementById('applications-count').textContent = myEvents.length;
+    } catch (error) {
+        console.error('Error cargando eventos:', error);
+        container.innerHTML = '<div class="text-center" style="padding: 20px; color: var(--color-error);">Error cargando tus eventos. Por favor recarga la página.</div>';
+    }
+},
 
     // ===== GESTIONAR CANDIDATOS DE UN EVENTO =====
     async manageEventApplicants(eventId) {
-        try {
-            // Obtener aplicaciones del evento
-            const applications = await SupabaseService.getEventApplications(eventId);
-            const event = await SupabaseService.getEventById(eventId);
+    try {
+        // Obtener aplicaciones del evento
+        const applications = await SupabaseService.getEventApplications(eventId);
+        const event = await SupabaseService.getEventById(eventId);
 
-            if (!event) {
-                this.showToast('Error: Evento no encontrado', 'error');
-                return;
-            }
+        if (!event) {
+            this.showToast('Error: Evento no encontrado', 'error');
+            return;
+        }
 
-            // Crear modal
-            const modal = document.createElement('div');
-            modal.className = 'modal';
-            modal.id = 'applicants-modal';
+        // Crear modal
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.id = 'applicants-modal';
 
-            const pendingApps = applications.filter(app => app.status === 'PENDIENTE');
-            const acceptedApps = applications.filter(app => app.status === 'ACEPTADO');
-            const rejectedApps = applications.filter(app => app.status === 'RECHAZADO');
+        const pendingApps = applications.filter(app => app.status === 'PENDIENTE');
+        const acceptedApps = applications.filter(app => app.status === 'ACEPTADO');
+        const rejectedApps = applications.filter(app => app.status === 'RECHAZADO');
 
-            modal.innerHTML = `
+        modal.innerHTML = `
                 <div class="modal-content" style="max-width: 800px;">
                     <div class="modal-header">
                         <h2>Gestionar Candidatos - ${event.title}</h2>
@@ -1062,23 +1103,23 @@ const app = {
                 </div>
             `;
 
-            document.body.appendChild(modal);
-            setTimeout(() => modal.classList.add('active'), 10);
-        } catch (error) {
-            console.error('Error cargando candidatos:', error);
-            this.showToast('Error cargando candidatos', 'error');
-        }
-    },
+        document.body.appendChild(modal);
+        setTimeout(() => modal.classList.add('active'), 10);
+    } catch (error) {
+        console.error('Error cargando candidatos:', error);
+        this.showToast('Error cargando candidatos', 'error');
+    }
+},
 
-    renderApplicantCard(application, event) {
-        const user = application.applicant || {};
-        const status = application.status;
+renderApplicantCard(application, event) {
+    const user = application.applicant || {};
+    const status = application.status;
 
-        return `
+    return `
             <div class="card mb-md" style="border-left: 4px solid ${status === 'ACEPTADO' ? 'var(--color-success)' :
-                status === 'RECHAZADO' ? 'var(--color-error)' :
-                    'var(--color-warning)'
-            };">
+            status === 'RECHAZADO' ? 'var(--color-error)' :
+                'var(--color-warning)'
+        };">
                 <div style="display: flex; justify-content: space-between; align-items: start;">
                     <div style="flex: 1;">
                         <div style="display: flex; align-items: center; gap: var(--spacing-md); margin-bottom: var(--spacing-sm);">
@@ -1115,54 +1156,54 @@ const app = {
                 </div>
             </div>
         `;
-    },
+},
 
     async acceptApplicant(applicationId, eventId) {
-        if (!confirm('¿Aceptar esta candidatura?')) return;
+    if (!confirm('¿Aceptar esta candidatura?')) return;
 
-        try {
-            await SupabaseService.updateApplicationStatus(applicationId, 'ACEPTADO', eventId);
-            this.showToast('Candidatura aceptada', 'success');
-            // Recargar modal
-            this.closeModal('applicants-modal');
-            this.manageEventApplicants(eventId);
-        } catch (error) {
-            console.error('Error aceptando candidatura:', error);
-            this.showToast('Error aceptando candidatura', 'error');
-        }
-    },
+    try {
+        await SupabaseService.updateApplicationStatus(applicationId, 'ACEPTADO', eventId);
+        this.showToast('Candidatura aceptada', 'success');
+        // Recargar modal
+        this.closeModal('applicants-modal');
+        this.manageEventApplicants(eventId);
+    } catch (error) {
+        console.error('Error aceptando candidatura:', error);
+        this.showToast('Error aceptando candidatura', 'error');
+    }
+},
 
     async rejectApplicant(applicationId, eventId) {
-        if (!confirm('¿Rechazar esta candidatura?')) return;
+    if (!confirm('¿Rechazar esta candidatura?')) return;
 
-        try {
-            await SupabaseService.updateApplicationStatus(applicationId, 'RECHAZADO', eventId);
-            this.showToast('Candidatura rechazada', 'success');
-            // Recargar modal
-            this.closeModal('applicants-modal');
-            this.manageEventApplicants(eventId);
-        } catch (error) {
-            console.error('Error rechazando candidatura:', error);
-            this.showToast('Error rechazando candidatura', 'error');
-        }
-    },
+    try {
+        await SupabaseService.updateApplicationStatus(applicationId, 'RECHAZADO', eventId);
+        this.showToast('Candidatura rechazada', 'success');
+        // Recargar modal
+        this.closeModal('applicants-modal');
+        this.manageEventApplicants(eventId);
+    } catch (error) {
+        console.error('Error rechazando candidatura:', error);
+        this.showToast('Error rechazando candidatura', 'error');
+    }
+},
 
     async viewUserProfile(userId) {
-        try {
-            // Obtener datos completos del usuario
-            const user = await SupabaseService.getUserById(userId);
+    try {
+        // Obtener datos completos del usuario
+        const user = await SupabaseService.getUserById(userId);
 
-            if (!user) {
-                this.showToast('Usuario no encontrado', 'error');
-                return;
-            }
+        if (!user) {
+            this.showToast('Usuario no encontrado', 'error');
+            return;
+        }
 
-            // Crear modal con perfil del usuario
-            const modal = document.createElement('div');
-            modal.className = 'modal';
-            modal.id = 'user-profile-modal';
+        // Crear modal con perfil del usuario
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.id = 'user-profile-modal';
 
-            modal.innerHTML = `
+        modal.innerHTML = `
                 <div class="modal-content" style="max-width: 600px;">
                     <div class="modal-header">
                         <h2>Perfil de ${user.username}</h2>
@@ -1226,28 +1267,28 @@ const app = {
                 </div>
             `;
 
-            document.body.appendChild(modal);
-            setTimeout(() => modal.classList.add('active'), 10);
-        } catch (error) {
-            console.error('Error cargando perfil:', error);
-            this.showToast('Error cargando perfil del usuario', 'error');
-        }
-    },
+        document.body.appendChild(modal);
+        setTimeout(() => modal.classList.add('active'), 10);
+    } catch (error) {
+        console.error('Error cargando perfil:', error);
+        this.showToast('Error cargando perfil del usuario', 'error');
+    }
+},
 
-    closeModal(modalId) {
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            modal.classList.remove('active');
-            setTimeout(() => modal.remove(), 300);
-        }
-    },
+closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.remove('active');
+        setTimeout(() => modal.remove(), 300);
+    }
+},
 
-    // ===== VISTA: FAVORITOS =====
-    loadFavoritesView() {
-        const container = document.getElementById('favorites-list');
+// ===== VISTA: FAVORITOS =====
+loadFavoritesView() {
+    const container = document.getElementById('favorites-list');
 
-        if (AppState.favorites.length === 0) {
-            container.innerHTML = `
+    if (AppState.favorites.length === 0) {
+        container.innerHTML = `
                 <div class="card text-center" style="padding: var(--spacing-2xl);">
                     <div style="font-size: 48px; margin-bottom: var(--spacing-md);">❤️</div>
                     <h3>No tienes favoritos</h3>
@@ -1257,28 +1298,28 @@ const app = {
                     <button class="btn btn-primary mt-md" onclick="app.showView('explore')">Explorar eventos</button>
                 </div>
     `;
-            return;
-        }
+        return;
+    }
 
-        const events = AppState.favorites
-            .map(id => DataService.getEventById(id))
-            .filter(e => e !== null);
+    const events = AppState.favorites
+        .map(id => DataService.getEventById(id))
+        .filter(e => e !== null);
 
-        this.renderEvents(events);
-    },
+    this.renderEvents(events);
+},
 
-    // ===== VISTA: PERFIL =====
-    loadProfileView() {
-        const user = AppState.currentUser;
-        const container = document.getElementById('profile-container');
+// ===== VISTA: PERFIL =====
+loadProfileView() {
+    const user = AppState.currentUser;
+    const container = document.getElementById('profile-container');
 
-        const verificationBadge = user.verified === 'VERIFICADO'
-            ? '<span class="verification-badge">✓ Verificado</span>'
-            : user.verified === 'PENDIENTE'
-                ? '<span class="badge badge-warning">⏳ Verificación pendiente</span>'
-                : '<span class="badge" style="background: var(--color-error);">❌ No verificado</span>';
+    const verificationBadge = user.verified === 'VERIFICADO'
+        ? '<span class="verification-badge">✓ Verificado</span>'
+        : user.verified === 'PENDIENTE'
+            ? '<span class="badge badge-warning">⏳ Verificación pendiente</span>'
+            : '<span class="badge" style="background: var(--color-error);">❌ No verificado</span>';
 
-        container.innerHTML = `
+    container.innerHTML = `
             <div class="profile-grid">
                 <div class="profile-main">
                     <div class="card profile-header">
@@ -1388,16 +1429,16 @@ const app = {
                 </div>
             </div >
     `;
-    },
+},
 
-    toggleProfileEdit() {
-        const user = AppState.currentUser;
-        // Normalizar avatar por si viene como avatar_url
-        const currentAvatar = user.avatar || user.avatar_url;
-        const container = document.getElementById('profile-container');
-        const zones = ['norte', 'sur', 'este', 'oeste', 'centro'];
+toggleProfileEdit() {
+    const user = AppState.currentUser;
+    // Normalizar avatar por si viene como avatar_url
+    const currentAvatar = user.avatar || user.avatar_url;
+    const container = document.getElementById('profile-container');
+    const zones = ['norte', 'sur', 'este', 'oeste', 'centro'];
 
-        container.innerHTML = `
+    container.innerHTML = `
             <div class="card" style="max-width: 600px; margin: 0 auto;">
                 <h2 style="margin-bottom: 20px;">✏️ Editar Perfil</h2>
                 <form id="profile-edit-form" onsubmit="app.saveProfile(event)">
@@ -1458,305 +1499,305 @@ const app = {
                 </form>
             </div>
         `;
-    },
+},
 
     async saveProfile(event) {
-        event.preventDefault();
-        const form = event.target;
-        const user = AppState.currentUser;
-        const submitBtn = form.querySelector('button[type="submit"]');
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Guardando...';
+    event.preventDefault();
+    const form = event.target;
+    const user = AppState.currentUser;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Guardando...';
 
-        try {
-            // 1. Recoger datos básicos
-            const selectedZones = Array.from(form.querySelectorAll('input[name="searchZones"]:checked'))
-                .map(cb => cb.value);
+    try {
+        // 1. Recoger datos básicos
+        const selectedZones = Array.from(form.querySelectorAll('input[name="searchZones"]:checked'))
+            .map(cb => cb.value);
 
-            let updates = {
-                bio: form.bio.value,
-                age: form.age.value ? parseInt(form.age.value) : null,
-                search_zones: selectedZones
-            };
+        let updates = {
+            bio: form.bio.value,
+            age: form.age.value ? parseInt(form.age.value) : null,
+            search_zones: selectedZones
+        };
 
-            // 2. Subir avatar si existe
-            const avatarFile = form.avatarFile.files[0];
-            if (avatarFile) {
-                const path = `${user.id}/${Date.now()}_avatar`;
-                const avatarUrl = await SupabaseService.uploadFile('avatars', path, avatarFile);
-                updates.avatar_url = avatarUrl;
-            }
-
-            // 3. Subir galería si existe
-            const galleryFiles = form.galleryFiles.files;
-            if (galleryFiles.length > 0) {
-                let currentGallery = user.gallery || [];
-                for (let i = 0; i < galleryFiles.length; i++) {
-                    const file = galleryFiles[i];
-                    const path = `${user.id}/${Date.now()}_gallery_${i}`;
-                    const url = await SupabaseService.uploadFile('gallery', path, file);
-                    currentGallery.push(url);
-                }
-                updates.gallery = currentGallery;
-            }
-
-            // 4. Actualizar usuario
-            await SupabaseService.updateUser(user.id, updates);
-
-            // 5. Refrescar estado local
-            const updatedProfile = await SupabaseService.getCurrentUser();
-            if (updatedProfile) {
-                // Mapear avatar_url -> avatar para compatibilidad con resto de app
-                updatedProfile.avatar = updatedProfile.avatar_url || updatedProfile.avatar;
-            }
-            AppState.currentUser = updatedProfile;
-
-            this.loadProfileView();
-            this.showToast('Perfil actualizado correctamente', 'success');
-
-        } catch (error) {
-            console.error('Error guardando perfil:', error);
-            this.showToast('Error: ' + (error.message || 'No se pudo guardar'), 'error');
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Guardar Cambios';
+        // 2. Subir avatar si existe
+        const avatarFile = form.avatarFile.files[0];
+        if (avatarFile) {
+            const path = `${user.id}/${Date.now()}_avatar`;
+            const avatarUrl = await SupabaseService.uploadFile('avatars', path, avatarFile);
+            updates.avatar_url = avatarUrl;
         }
-    },
+
+        // 3. Subir galería si existe
+        const galleryFiles = form.galleryFiles.files;
+        if (galleryFiles.length > 0) {
+            let currentGallery = user.gallery || [];
+            for (let i = 0; i < galleryFiles.length; i++) {
+                const file = galleryFiles[i];
+                const path = `${user.id}/${Date.now()}_gallery_${i}`;
+                const url = await SupabaseService.uploadFile('gallery', path, file);
+                currentGallery.push(url);
+            }
+            updates.gallery = currentGallery;
+        }
+
+        // 4. Actualizar usuario
+        await SupabaseService.updateUser(user.id, updates);
+
+        // 5. Refrescar estado local
+        const updatedProfile = await SupabaseService.getCurrentUser();
+        if (updatedProfile) {
+            // Mapear avatar_url -> avatar para compatibilidad con resto de app
+            updatedProfile.avatar = updatedProfile.avatar_url || updatedProfile.avatar;
+        }
+        AppState.currentUser = updatedProfile;
+
+        this.loadProfileView();
+        this.showToast('Perfil actualizado correctamente', 'success');
+
+    } catch (error) {
+        console.error('Error guardando perfil:', error);
+        this.showToast('Error: ' + (error.message || 'No se pudo guardar'), 'error');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Guardar Cambios';
+    }
+},
 
     async deleteGalleryImage(imageUrl) {
-        if (!confirm('¿Borrar esta foto?')) return;
+    if (!confirm('¿Borrar esta foto?')) return;
 
-        const user = AppState.currentUser;
-        try {
-            // 1. Filtrar array local
-            const newGallery = (user.gallery || []).filter(img => img !== imageUrl);
+    const user = AppState.currentUser;
+    try {
+        // 1. Filtrar array local
+        const newGallery = (user.gallery || []).filter(img => img !== imageUrl);
 
-            // 2. Actualizar DB
-            await SupabaseService.updateUser(user.id, { gallery: newGallery });
+        // 2. Actualizar DB
+        await SupabaseService.updateUser(user.id, { gallery: newGallery });
 
-            // 3. Refrescar UI
-            user.gallery = newGallery;
-            this.toggleProfileEdit();
-
-            // Intento de borrado físico en background
-            try {
-                await SupabaseService.deleteFile('gallery', imageUrl);
-            } catch (e) { console.warn('Borrado físico falló, pero DB actualizada', e); }
-
-        } catch (error) {
-            console.error(error);
-            this.showToast('Error borrando imagen', 'error');
-        }
-    },
-
-    // ===== UTILIDADES =====
-    formatDate(date) {
-        if (typeof date === 'string') {
-            const d = new Date(date);
-            return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
-        }
-        return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
-    },
-
-    capitalizeZone(zone) {
-        const zones = {
-            'norte': 'Zona Norte',
-            'sur': 'Zona Sur',
-            'este': 'Zona Este',
-            'oeste': 'Zona Oeste',
-            'centro': 'Centro'
-        };
-        return zones[zone] || zone;
-    },
-
-    showImageModal(imageUrl) {
-        const modal = document.getElementById('image-modal');
-        const img = document.getElementById('image-modal-img');
-        img.src = imageUrl;
-        modal.classList.add('active');
-    },
-
-    closeImageModal() {
-        const modal = document.getElementById('image-modal');
-        modal.classList.remove('active');
-    },
-
-    showToast(message, type = 'info') {
-        const container = document.getElementById('toast-container');
-        const toast = document.createElement('div');
-        toast.className = `toast ${type} `;
-        toast.textContent = message;
-
-        container.appendChild(toast);
-
-        setTimeout(() => {
-            toast.remove();
-        }, 3000);
-    },
-    // ===== GESTIÓN DE EVENTOS Y PERFIL =====
-
-    showCreateEvent() {
-        const modal = document.getElementById('create-event-modal');
-        modal.classList.add('active');
-    },
-
-    closeCreateEventModal() {
-        const modal = document.getElementById('create-event-modal');
-        modal.classList.remove('active');
-    },
-
-    handleCreateEvent(event) {
-        event.preventDefault();
-
-        // Validar permisos
-        if (AppState.currentUser.role !== 'OFERENTE' && AppState.currentUser.role !== 'ADMIN') {
-            this.showToast('Solo los postulantes y administradores pueden crear eventos', 'error');
-            return;
-        }
-
-        const form = event.target;
-        const formData = new FormData(form);
-
-        const eventData = {
-            title: formData.get('title'),
-            description: formData.get('description'),
-            gangbangLevel: formData.get('gangbangLevel'),
-            date: formData.get('date'),
-            time: formData.get('time'),
-            zone: formData.get('zone'),
-            capacity: parseInt(formData.get('capacity')),
-            location: formData.get('location'),
-            rules: formData.get('rules')
-        };
-
-        try {
-            const newEvent = DataService.createEvent(eventData, AppState.currentUser.id);
-            this.showToast('Evento creado exitosamente', 'success');
-            this.closeCreateEventModal();
-            form.reset();
-            this.loadExploreView(); // Recargar vista
-        } catch (error) {
-            console.error(error);
-            this.showToast('Error al crear el evento', 'error');
-        }
-    },
-
-    toggleProfileEdit() {
-        const modal = document.getElementById('edit-profile-modal');
-        const user = AppState.currentUser;
-
-        if (!modal.classList.contains('active')) {
-            // Cargar datos actuales
-            const form = document.getElementById('edit-profile-form');
-            form.bio.value = user.bio || '';
-
-            // Cargar zonas
-            const checkBoxes = form.querySelectorAll('input[name="zones"]');
-            checkBoxes.forEach(cb => {
-                cb.checked = user.searchZones && user.searchZones.includes(cb.value);
-            });
-
-            // Preview avatar
-            document.getElementById('edit-avatar-preview').src = user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`;
-
-            // Preview galería
-            const galleryContainer = document.getElementById('gallery-preview');
-            galleryContainer.innerHTML = '';
-            if (user.gallery) {
-                user.gallery.forEach(img => {
-                    const imgEl = document.createElement('img');
-                    imgEl.src = img;
-                    imgEl.style.width = '50px';
-                    imgEl.style.height = '50px';
-                    imgEl.style.objectFit = 'cover';
-                    galleryContainer.appendChild(imgEl);
-                });
-            }
-        }
-
-        modal.classList.toggle('active');
-    },
-
-    handleImageUpload(type, input) {
-        if (input.files && input.files[0]) {
-            const reader = new FileReader();
-
-            reader.onload = function (e) {
-                const result = e.target.result;
-
-                if (type === 'avatar') {
-                    document.getElementById('edit-avatar-preview').src = result;
-                    AppState.tempAvatar = result;
-                } else if (type === 'gallery') {
-                    if (!AppState.tempGallery) AppState.tempGallery = [];
-                    if (AppState.tempGallery.length >= 4) {
-                        app.showToast('Máximo 4 fotos en la galería', 'warning');
-                        return;
-                    }
-                    AppState.tempGallery.push(result);
-
-                    // Actualizar preview
-                    const galleryContainer = document.getElementById('gallery-preview');
-                    const imgEl = document.createElement('img');
-                    imgEl.src = result;
-                    imgEl.style.width = '50px';
-                    imgEl.style.height = '50px';
-                    imgEl.style.objectFit = 'cover';
-                    galleryContainer.appendChild(imgEl);
-                }
-            };
-
-            reader.readAsDataURL(input.files[0]);
-        }
-    },
-
-    handleProfileEdit(event) {
-        event.preventDefault();
-        const form = event.target;
-        const user = AppState.currentUser;
-
-        // Actualizar Bio
-        user.bio = form.bio.value;
-
-        // Actualizar Zonas
-        const checkBoxes = form.querySelectorAll('input[name="zones"]:checked');
-        user.searchZones = Array.from(checkBoxes).map(cb => cb.value);
-
-        // Actualizar Avatar si hay cambio
-        if (AppState.tempAvatar) {
-            user.avatar = AppState.tempAvatar;
-            delete AppState.tempAvatar;
-        }
-
-        // Actualizar Galería si hay cambios
-        if (AppState.tempGallery) {
-            if (!user.gallery) user.gallery = [];
-            user.gallery = [...user.gallery, ...AppState.tempGallery].slice(0, 4); // Limitar a 4
-            delete AppState.tempGallery;
-        }
-
-        // Guardar cambios
-        const dbUser = DataService.getUserById(user.id);
-        if (dbUser) {
-            Object.assign(dbUser, user);
-        }
-
-        // Persistir sesión
-        localStorage.setItem('currentUser', JSON.stringify(user));
-
-        this.showToast('Perfil actualizado correctamente', 'success');
+        // 3. Refrescar UI
+        user.gallery = newGallery;
         this.toggleProfileEdit();
-        this.loadProfileView();
-    },
 
-    // ===== ADMIN PANEL =====
+        // Intento de borrado físico en background
+        try {
+            await SupabaseService.deleteFile('gallery', imageUrl);
+        } catch (e) { console.warn('Borrado físico falló, pero DB actualizada', e); }
 
-    loadAdminView() {
-        const container = document.getElementById('view-admin');
-        const users = DataService.getAllUsers();
-        const events = DataService.getAllEvents();
-        const auditLog = DB.auditLog || [];
+    } catch (error) {
+        console.error(error);
+        this.showToast('Error borrando imagen', 'error');
+    }
+},
 
-        container.innerHTML = `
+// ===== UTILIDADES =====
+formatDate(date) {
+    if (typeof date === 'string') {
+        const d = new Date(date);
+        return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
+    }
+    return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
+},
+
+capitalizeZone(zone) {
+    const zones = {
+        'norte': 'Zona Norte',
+        'sur': 'Zona Sur',
+        'este': 'Zona Este',
+        'oeste': 'Zona Oeste',
+        'centro': 'Centro'
+    };
+    return zones[zone] || zone;
+},
+
+showImageModal(imageUrl) {
+    const modal = document.getElementById('image-modal');
+    const img = document.getElementById('image-modal-img');
+    img.src = imageUrl;
+    modal.classList.add('active');
+},
+
+closeImageModal() {
+    const modal = document.getElementById('image-modal');
+    modal.classList.remove('active');
+},
+
+showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type} `;
+    toast.textContent = message;
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
+},
+// ===== GESTIÓN DE EVENTOS Y PERFIL =====
+
+showCreateEvent() {
+    const modal = document.getElementById('create-event-modal');
+    modal.classList.add('active');
+},
+
+closeCreateEventModal() {
+    const modal = document.getElementById('create-event-modal');
+    modal.classList.remove('active');
+},
+
+handleCreateEvent(event) {
+    event.preventDefault();
+
+    // Validar permisos
+    if (AppState.currentUser.role !== 'OFERENTE' && AppState.currentUser.role !== 'ADMIN') {
+        this.showToast('Solo los postulantes y administradores pueden crear eventos', 'error');
+        return;
+    }
+
+    const form = event.target;
+    const formData = new FormData(form);
+
+    const eventData = {
+        title: formData.get('title'),
+        description: formData.get('description'),
+        gangbangLevel: formData.get('gangbangLevel'),
+        date: formData.get('date'),
+        time: formData.get('time'),
+        zone: formData.get('zone'),
+        capacity: parseInt(formData.get('capacity')),
+        location: formData.get('location'),
+        rules: formData.get('rules')
+    };
+
+    try {
+        const newEvent = DataService.createEvent(eventData, AppState.currentUser.id);
+        this.showToast('Evento creado exitosamente', 'success');
+        this.closeCreateEventModal();
+        form.reset();
+        this.loadExploreView(); // Recargar vista
+    } catch (error) {
+        console.error(error);
+        this.showToast('Error al crear el evento', 'error');
+    }
+},
+
+toggleProfileEdit() {
+    const modal = document.getElementById('edit-profile-modal');
+    const user = AppState.currentUser;
+
+    if (!modal.classList.contains('active')) {
+        // Cargar datos actuales
+        const form = document.getElementById('edit-profile-form');
+        form.bio.value = user.bio || '';
+
+        // Cargar zonas
+        const checkBoxes = form.querySelectorAll('input[name="zones"]');
+        checkBoxes.forEach(cb => {
+            cb.checked = user.searchZones && user.searchZones.includes(cb.value);
+        });
+
+        // Preview avatar
+        document.getElementById('edit-avatar-preview').src = user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`;
+
+        // Preview galería
+        const galleryContainer = document.getElementById('gallery-preview');
+        galleryContainer.innerHTML = '';
+        if (user.gallery) {
+            user.gallery.forEach(img => {
+                const imgEl = document.createElement('img');
+                imgEl.src = img;
+                imgEl.style.width = '50px';
+                imgEl.style.height = '50px';
+                imgEl.style.objectFit = 'cover';
+                galleryContainer.appendChild(imgEl);
+            });
+        }
+    }
+
+    modal.classList.toggle('active');
+},
+
+handleImageUpload(type, input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+
+        reader.onload = function (e) {
+            const result = e.target.result;
+
+            if (type === 'avatar') {
+                document.getElementById('edit-avatar-preview').src = result;
+                AppState.tempAvatar = result;
+            } else if (type === 'gallery') {
+                if (!AppState.tempGallery) AppState.tempGallery = [];
+                if (AppState.tempGallery.length >= 4) {
+                    app.showToast('Máximo 4 fotos en la galería', 'warning');
+                    return;
+                }
+                AppState.tempGallery.push(result);
+
+                // Actualizar preview
+                const galleryContainer = document.getElementById('gallery-preview');
+                const imgEl = document.createElement('img');
+                imgEl.src = result;
+                imgEl.style.width = '50px';
+                imgEl.style.height = '50px';
+                imgEl.style.objectFit = 'cover';
+                galleryContainer.appendChild(imgEl);
+            }
+        };
+
+        reader.readAsDataURL(input.files[0]);
+    }
+},
+
+handleProfileEdit(event) {
+    event.preventDefault();
+    const form = event.target;
+    const user = AppState.currentUser;
+
+    // Actualizar Bio
+    user.bio = form.bio.value;
+
+    // Actualizar Zonas
+    const checkBoxes = form.querySelectorAll('input[name="zones"]:checked');
+    user.searchZones = Array.from(checkBoxes).map(cb => cb.value);
+
+    // Actualizar Avatar si hay cambio
+    if (AppState.tempAvatar) {
+        user.avatar = AppState.tempAvatar;
+        delete AppState.tempAvatar;
+    }
+
+    // Actualizar Galería si hay cambios
+    if (AppState.tempGallery) {
+        if (!user.gallery) user.gallery = [];
+        user.gallery = [...user.gallery, ...AppState.tempGallery].slice(0, 4); // Limitar a 4
+        delete AppState.tempGallery;
+    }
+
+    // Guardar cambios
+    const dbUser = DataService.getUserById(user.id);
+    if (dbUser) {
+        Object.assign(dbUser, user);
+    }
+
+    // Persistir sesión
+    localStorage.setItem('currentUser', JSON.stringify(user));
+
+    this.showToast('Perfil actualizado correctamente', 'success');
+    this.toggleProfileEdit();
+    this.loadProfileView();
+},
+
+// ===== ADMIN PANEL =====
+
+loadAdminView() {
+    const container = document.getElementById('view-admin');
+    const users = DataService.getAllUsers();
+    const events = DataService.getAllEvents();
+    const auditLog = DB.auditLog || [];
+
+    container.innerHTML = `
             <div class="admin-dashboard fade-in">
                 <div class="header-section">
                     <h1>🛡️ Panel de Control</h1>
@@ -1785,25 +1826,25 @@ const app = {
                 </div>
             </div>
         `;
-    },
+},
 
-    switchAdminTab(tabName) {
-        const buttons = document.querySelectorAll('.tab-btn');
-        buttons.forEach(b => b.classList.remove('active'));
-        if (event) event.target.classList.add('active');
+switchAdminTab(tabName) {
+    const buttons = document.querySelectorAll('.tab-btn');
+    buttons.forEach(b => b.classList.remove('active'));
+    if (event) event.target.classList.add('active');
 
-        const content = document.getElementById('admin-tab-content');
-        if (tabName === 'users') {
-            content.innerHTML = this.renderAdminUsersTable(DataService.getAllUsers());
-        } else if (tabName === 'events') {
-            content.innerHTML = this.renderAdminEventsTable(DataService.getAllEvents());
-        } else if (tabName === 'audit') {
-            content.innerHTML = this.renderAdminAuditTable(DB.auditLog || []);
-        }
-    },
+    const content = document.getElementById('admin-tab-content');
+    if (tabName === 'users') {
+        content.innerHTML = this.renderAdminUsersTable(DataService.getAllUsers());
+    } else if (tabName === 'events') {
+        content.innerHTML = this.renderAdminEventsTable(DataService.getAllEvents());
+    } else if (tabName === 'audit') {
+        content.innerHTML = this.renderAdminAuditTable(DB.auditLog || []);
+    }
+},
 
-    renderAdminUsersTable(users) {
-        return `
+renderAdminUsersTable(users) {
+    return `
             <div class="card">
                 <h3>Gestión de Usuarios</h3>
                 <div class="table-responsive">
@@ -1836,10 +1877,10 @@ const app = {
                 </div>
             </div>
         `;
-    },
+},
 
-    renderAdminEventsTable(events) {
-        return `
+renderAdminEventsTable(events) {
+    return `
             <div class="card">
                 <h3>Gestión de Eventos</h3>
                 <div class="table-responsive">
@@ -1870,10 +1911,10 @@ const app = {
                 </div>
             </div>
         `;
-    },
+},
 
-    renderAdminAuditTable(logs) {
-        return `
+renderAdminAuditTable(logs) {
+    return `
            <div class="card">
                 <h3>Auditoría del Sistema</h3>
                 <div class="table-responsive">
@@ -1900,26 +1941,26 @@ const app = {
                 </div>
            </div>
         `;
-    },
+},
 
     // ===== MODALES Y DETALLES DE EVENTOS =====
     async showEventDetail(eventId) {
-        const modal = document.getElementById('event-detail-modal');
-        const content = document.getElementById('event-detail-content');
+    const modal = document.getElementById('event-detail-modal');
+    const content = document.getElementById('event-detail-content');
 
-        modal.classList.add('active');
-        content.innerHTML = '<div class="loading-spinner"></div>';
+    modal.classList.add('active');
+    content.innerHTML = '<div class="loading-spinner"></div>';
 
-        try {
-            const event = await SupabaseService.getEventById(eventId);
-            if (!event) throw new Error('Evento no encontrado');
+    try {
+        const event = await SupabaseService.getEventById(eventId);
+        if (!event) throw new Error('Evento no encontrado');
 
-            const organizer = event.organizer || { username: 'Desconocido', avatar: null };
-            const isOrganizer = AppState.currentUser && AppState.currentUser.id === event.organizer_id;
-            const isBuscador = AppState.currentUser && AppState.currentUser.role === 'BUSCADOR';
-            const applicantsCount = 0; // TODO: Obtener conteo real si es necesario
+        const organizer = event.organizer || { username: 'Desconocido', avatar: null };
+        const isOrganizer = AppState.currentUser && AppState.currentUser.id === event.organizer_id;
+        const isBuscador = AppState.currentUser && AppState.currentUser.role === 'BUSCADOR';
+        const applicantsCount = 0; // TODO: Obtener conteo real si es necesario
 
-            content.innerHTML = `
+        content.innerHTML = `
             <div class="event-detail">
                 <h3>${event.title}</h3>
                 <p style="color: var(--color-text-secondary); margin: var(--spacing-sm) 0;">${event.description}</p>
@@ -1981,77 +2022,77 @@ const app = {
                 ` : ''}
             </div>
             `;
-        } catch (error) {
-            console.error('Error cargando detalle:', error);
-            content.innerHTML = `<div class="error-msg">Error cargando evento: ${error.message}</div>`;
-        }
-    },
+    } catch (error) {
+        console.error('Error cargando detalle:', error);
+        content.innerHTML = `<div class="error-msg">Error cargando evento: ${error.message}</div>`;
+    }
+},
 
     async confirmDeleteEvent(eventId) {
-        if (!confirm('⚠️ ¿Estás segura de borrar este evento?\n\nSe eliminará permanentemente.')) {
-            return;
-        }
+    if (!confirm('⚠️ ¿Estás segura de borrar este evento?\n\nSe eliminará permanentemente.')) {
+        return;
+    }
 
-        try {
-            await SupabaseService.deleteEvent(eventId);
-            this.closeEventDetail();
-            this.showToast('Evento eliminado correctamente', 'success');
+    try {
+        await SupabaseService.deleteEvent(eventId);
+        this.closeEventDetail();
+        this.showToast('Evento eliminado correctamente', 'success');
 
-            if (AppState.currentView === 'applications') {
-                this.loadMyEventsView();
-            }
-        } catch (error) {
-            console.error('Error borrando evento:', error);
-            alert('Error al borrar el evento: ' + error.message);
+        if (AppState.currentView === 'applications') {
+            this.loadMyEventsView();
         }
-    },
+    } catch (error) {
+        console.error('Error borrando evento:', error);
+        alert('Error al borrar el evento: ' + error.message);
+    }
+},
 
     async finalizeEvent(eventId) {
-        if (!confirm('¿Estás segura de finalizar el evento?\n\nEsto habilitará las votaciones para los participantes.')) return;
+    if (!confirm('¿Estás segura de finalizar el evento?\n\nEsto habilitará las votaciones para los participantes.')) return;
 
-        try {
-            await SupabaseService.finalizeEvent(eventId);
-            this.showToast('¡Evento finalizado! Ahora pueden valorarte.', 'success');
-            this.showEventDetail(eventId); // Recargar ver cambios
-        } catch (e) {
-            console.error(e);
-            this.showToast('Error finalizando evento', 'error');
-        }
-    },
+    try {
+        await SupabaseService.finalizeEvent(eventId);
+        this.showToast('¡Evento finalizado! Ahora pueden valorarte.', 'success');
+        this.showEventDetail(eventId); // Recargar ver cambios
+    } catch (e) {
+        console.error(e);
+        this.showToast('Error finalizando evento', 'error');
+    }
+},
 
-    renderDetailActionButtons(event) {
-        const myApp = (AppState.myApplications || []).find(a => a.event_id === event.id);
+renderDetailActionButtons(event) {
+    const myApp = (AppState.myApplications || []).find(a => a.event_id === event.id);
 
-        if (!myApp) {
-            return `<button class="btn btn-primary btn-block" onclick="app.applyToEvent('${event.id}')">Me interesa ❤️</button>`;
-        }
+    if (!myApp) {
+        return `<button class="btn btn-primary btn-block" onclick="app.applyToEvent('${event.id}')">Me interesa ❤️</button>`;
+    }
 
-        if (event.status === 'FINALIZADO' && (myApp.status === 'ACEPTADO' || myApp.status === 'FINALIZADO')) {
-            return `<button class="btn btn-primary btn-block" style="background: gold; color: black;" onclick="app.openRateModal('${event.id}', '${event.organizer_id}')">⭐ Valorar Organizadora</button>`;
-        }
+    if (event.status === 'FINALIZADO' && (myApp.status === 'ACEPTADO' || myApp.status === 'FINALIZADO')) {
+        return `<button class="btn btn-primary btn-block" style="background: gold; color: black;" onclick="app.openRateModal('${event.id}', '${event.organizer_id}')">⭐ Valorar Organizadora</button>`;
+    }
 
-        if (myApp.status === 'PENDIENTE') {
-            return `<div class="p-md text-center bg-gray rounded">⏳ Tu solicitud está pendiente de respuesta</div>`;
-        }
+    if (myApp.status === 'PENDIENTE') {
+        return `<div class="p-md text-center bg-gray rounded">⏳ Tu solicitud está pendiente de respuesta</div>`;
+    }
 
-        if (myApp.status === 'ACEPTADO') {
-            return `
+    if (myApp.status === 'ACEPTADO') {
+        return `
                 <div class="p-md bg-success-light rounded mb-md">
                     <h3>¡Felicidades! 🎉</h3>
                     <p>Has sido aceptado en este evento.</p>
                     <div style="margin-top: 10px; font-weight: bold;">📍 Ubicación: ${event.location || 'Se revelará pronto'}</div>
                 </div>
             `;
-        }
+    }
 
-        return '';
-    },
+    return '';
+},
 
     async openRateModal(eventId, targetUserId) {
-        // Verificar si existe el modal, si no, crearlo dinámicamente
-        let modal = document.getElementById('rate-modal');
-        if (!modal) {
-            document.body.insertAdjacentHTML('beforeend', `
+    // Verificar si existe el modal, si no, crearlo dinámicamente
+    let modal = document.getElementById('rate-modal');
+    if (!modal) {
+        document.body.insertAdjacentHTML('beforeend', `
                 <div id="rate-modal" class="modal">
                     <div class="modal-content" style="max-width: 400px; text-align: center;">
                         <span class="close-modal" onclick="document.getElementById('rate-modal').classList.remove('active')">&times;</span>
@@ -2074,108 +2115,108 @@ const app = {
                     </div>
                 </div>
             `);
-            modal = document.getElementById('rate-modal');
-        }
+        modal = document.getElementById('rate-modal');
+    }
 
-        const targetUser = await SupabaseService.getUserById(targetUserId);
+    const targetUser = await SupabaseService.getUserById(targetUserId);
 
-        const infoDiv = document.getElementById('rate-target-info');
-        infoDiv.innerHTML = `
+    const infoDiv = document.getElementById('rate-target-info');
+    infoDiv.innerHTML = `
             <img src="${targetUser.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${targetUser.username}`}" 
                  style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 10px;">
             <p>¿Qué tal fue tu experiencia con <strong>${targetUser.username}</strong>?</p>
         `;
 
-        // Reset stars
-        this.setRating(0);
-        document.getElementById('rate-comment').value = '';
+    // Reset stars
+    this.setRating(0);
+    document.getElementById('rate-comment').value = '';
 
-        modal.classList.add('active');
-    },
+    modal.classList.add('active');
+},
 
-    setRating(value) {
-        document.getElementById('rate-value').value = value;
-        const stars = document.querySelectorAll('.star-rating span');
-        stars.forEach((star, index) => {
-            star.style.color = index < value ? 'gold' : 'gray';
-            star.style.cursor = 'pointer';
-        });
-    },
+setRating(value) {
+    document.getElementById('rate-value').value = value;
+    const stars = document.querySelectorAll('.star-rating span');
+    stars.forEach((star, index) => {
+        star.style.color = index < value ? 'gold' : 'gray';
+        star.style.cursor = 'pointer';
+    });
+},
 
     async submitRating(eventId, reviewedId) {
-        const rating = parseInt(document.getElementById('rate-value').value);
-        const comment = document.getElementById('rate-comment').value;
+    const rating = parseInt(document.getElementById('rate-value').value);
+    const comment = document.getElementById('rate-comment').value;
 
-        if (rating === 0) {
-            this.showToast('Por favor selecciona una puntuación', 'warning');
-            return;
-        }
+    if (rating === 0) {
+        this.showToast('Por favor selecciona una puntuación', 'warning');
+        return;
+    }
 
-        try {
-            await SupabaseService.submitEventRatings([{
-                reviewer_id: AppState.currentUser.id,
-                reviewed_id: reviewedId,
-                event_id: eventId,
-                rating: rating,
-                comment: comment
-            }]);
+    try {
+        await SupabaseService.submitEventRatings([{
+            reviewer_id: AppState.currentUser.id,
+            reviewed_id: reviewedId,
+            event_id: eventId,
+            rating: rating,
+            comment: comment
+        }]);
 
-            this.showToast('¡Gracias por tu valoración!', 'success');
-            document.getElementById('rate-modal').classList.remove('active');
-        } catch (error) {
-            console.error('Error enviando valoración:', error);
-            this.showToast('Error al enviar valoración', 'error');
-        }
-    },
+        this.showToast('¡Gracias por tu valoración!', 'success');
+        document.getElementById('rate-modal').classList.remove('active');
+    } catch (error) {
+        console.error('Error enviando valoración:', error);
+        this.showToast('Error al enviar valoración', 'error');
+    }
+},
 
-    editEvent(eventId) {
-        alert('🚧 Funcionalidad de modificación en desarrollo.');
-    },
+editEvent(eventId) {
+    alert('🚧 Funcionalidad de modificación en desarrollo.');
+},
 
-    closeEventDetail() {
-        const modal = document.getElementById('event-detail-modal');
-        modal.classList.remove('active');
+closeEventDetail() {
+    const modal = document.getElementById('event-detail-modal');
+    modal.classList.remove('active');
 
-        // Si estamos en la vista de mis eventos, recargar para actualizar contadores
-        if (AppState.currentView === 'applications' && AppState.currentUser.role === 'OFERENTE') {
-            this.loadMyEventsView();
-        }
-    },
+    // Si estamos en la vista de mis eventos, recargar para actualizar contadores
+    if (AppState.currentView === 'applications' && AppState.currentUser.role === 'OFERENTE') {
+        this.loadMyEventsView();
+    }
+},
 
-    showCreateEvent() {
-        const modal = document.getElementById('create-event-modal');
-        modal.classList.add('active');
-    },
+showCreateEvent() {
+    const modal = document.getElementById('create-event-modal');
+    modal.classList.add('active');
+},
 
-    closeCreateEvent() {
-        const modal = document.getElementById('create-event-modal');
-        modal.classList.remove('active');
-    },
+closeCreateEvent() {
+    const modal = document.getElementById('create-event-modal');
+    modal.classList.remove('active');
+},
 
     // ===== GESTIÓN DE CANDIDATOS (OFERENTES) =====
     async manageEventApplicants(eventId) {
-        const content = document.getElementById('event-detail-content');
+    const content = document.getElementById('event-detail-content');
 
-        // Mostrar estado de carga
-        content.innerHTML = '<div class="loading-spinner"></div>';
+    // Mostrar estado de carga
+    content.innerHTML = '<div class="loading-spinner"></div>';
 
-        try {
-            // 1. Obtener evento y postulaciones REALES de Supabase
-            const [event, applications] = await Promise.all([
-                SupabaseService.getEventById(eventId),
-                SupabaseService.getEventApplications(eventId)
-            ]);
+    try {
+        // 1. Obtener evento y postulaciones REALES de Supabase
+        const [event, applications] = await Promise.all([
+            SupabaseService.getEventById(eventId),
+            SupabaseService.getEventApplications(eventId)
+        ]);
 
-            if (!event) throw new Error('Evento no encontrado');
+        if (!event) throw new Error('Evento no encontrado');
 
-            if (!applications || applications.length === 0) {
-                this.showToast('No hay candidaturas para este evento aún', 'info');
-                // Volver a mostrar el detalle normal
-                this.showEventDetail(eventId);
-                return;
-            }
+        if (!applications || applications.length === 0) {
+            this.showToast('No hay candidaturas para este evento aún', 'info');
+            // Volver a mostrar el detalle normal
+            this.showEventDetail(eventId);
+            return;
+        }
 
-            content.innerHTML = `
+        content.innerHTML = `
                 <div class="event-detail">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--spacing-md);">
                         <h3>Gestionar Candidatos: ${event.title}</h3>
@@ -2188,20 +2229,20 @@ const app = {
                     
                     <div style="display: flex; flex-direction: column; gap: var(--spacing-md);">
                         ${applications.map(app => {
-                // Extraer el usuario de la relación 'applicant' (que viene del join en SupabaseService)
-                const user = app.applicant;
-                if (!user) return ''; // Skip si no hay usuario
+            // Extraer el usuario de la relación 'applicant' (que viene del join en SupabaseService)
+            const user = app.applicant;
+            if (!user) return ''; // Skip si no hay usuario
 
-                // Calcular validación visual
-                const borderColor = app.status === 'ACEPTADO' ? 'var(--color-success)' :
-                    app.status === 'RECHAZADO' ? 'var(--color-error)' :
-                        app.status === 'FINALIZADO' ? 'var(--color-accent)' :
-                            'var(--color-warning)'; // Pendiente
+            // Calcular validación visual
+            const borderColor = app.status === 'ACEPTADO' ? 'var(--color-success)' :
+                app.status === 'RECHAZADO' ? 'var(--color-error)' :
+                    app.status === 'FINALIZADO' ? 'var(--color-accent)' :
+                        'var(--color-warning)'; // Pendiente
 
-                // Normalizar avatar
-                const avatarUrl = user.avatar || user.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`;
+            // Normalizar avatar
+            const avatarUrl = user.avatar || user.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`;
 
-                return `
+            return `
                                 <div class="card" style="border-left: 4px solid ${borderColor}; padding: var(--spacing-md);">
                                     <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: var(--spacing-sm);">
                                         
@@ -2251,96 +2292,96 @@ const app = {
                                     ` : ''}
                                 </div>
                             `;
-            }).join('')}
+        }).join('')}
                     </div>
                 </div>
             `;
 
-        } catch (error) {
-            console.error('Error gestionando candidatos:', error);
-            content.innerHTML = `<div class="error-msg">Error cargando candidatos: ${error.message}</div>`;
-        }
-    },
+    } catch (error) {
+        console.error('Error gestionando candidatos:', error);
+        content.innerHTML = `<div class="error-msg">Error cargando candidatos: ${error.message}</div>`;
+    }
+},
 
     async acceptCandidate(applicationId, eventId, userId) {
-        if (!confirm('¿Aceptar a este usuario para el evento? Se le enviará una notificación.')) return;
+    if (!confirm('¿Aceptar a este usuario para el evento? Se le enviará una notificación.')) return;
 
-        try {
-            await SupabaseService.acceptApplicant(eventId, userId);
+    try {
+        await SupabaseService.acceptApplicant(eventId, userId);
 
-            this.showToast('Candidato aceptado exitosamente', 'success');
+        this.showToast('Candidato aceptado exitosamente', 'success');
 
-            // Verificar si se alcanzó la capacidad para cerrar evento
-            const [event, applications] = await Promise.all([
-                SupabaseService.getEventById(eventId),
-                SupabaseService.getEventApplications(eventId)
-            ]);
+        // Verificar si se alcanzó la capacidad para cerrar evento
+        const [event, applications] = await Promise.all([
+            SupabaseService.getEventById(eventId),
+            SupabaseService.getEventApplications(eventId)
+        ]);
 
-            const acceptedCount = applications.filter(a => a.status === 'ACEPTADO').length;
+        const acceptedCount = applications.filter(a => a.status === 'ACEPTADO').length;
 
-            if (event && acceptedCount >= event.capacity) {
-                // Cerrar evento automáticamente
-                // Asumimos que existe updateEventStatus o usamos updateEvent
-                await SupabaseService.updateEvent(eventId, { status: 'CERRADO' }); // O FINALIZADO? CERRADO parece mejor para "no más gente"
-                this.showToast('🔒 ¡Evento cerrado por completarse el aforo!', 'info');
-            }
-
-            // Recargar la lista
-            this.manageEventApplicants(eventId);
-        } catch (error) {
-            console.error('Error aceptando:', error);
-            this.showToast('Error aceptando candidato', 'error');
+        if (event && acceptedCount >= event.capacity) {
+            // Cerrar evento automáticamente
+            // Asumimos que existe updateEventStatus o usamos updateEvent
+            await SupabaseService.updateEvent(eventId, { status: 'CERRADO' }); // O FINALIZADO? CERRADO parece mejor para "no más gente"
+            this.showToast('🔒 ¡Evento cerrado por completarse el aforo!', 'info');
         }
-    },
+
+        // Recargar la lista
+        this.manageEventApplicants(eventId);
+    } catch (error) {
+        console.error('Error aceptando:', error);
+        this.showToast('Error aceptando candidato', 'error');
+    }
+},
 
     async rejectCandidate(applicationId, eventId) {
-        if (!confirm('¿Rechazar esta solicitud?')) return;
+    if (!confirm('¿Rechazar esta solicitud?')) return;
 
-        try {
-            await SupabaseService.updateApplicationStatus(applicationId, 'RECHAZADO', eventId);
-            this.showToast('Solicitud rechazada', 'success');
-            this.manageEventApplicants(eventId);
-        } catch (error) {
-            console.error('Error rechazando:', error);
-            this.showToast('Error rechazando candidato', 'error');
-        }
-    },
+    try {
+        await SupabaseService.updateApplicationStatus(applicationId, 'RECHAZADO', eventId);
+        this.showToast('Solicitud rechazada', 'success');
+        this.manageEventApplicants(eventId);
+    } catch (error) {
+        console.error('Error rechazando:', error);
+        this.showToast('Error rechazando candidato', 'error');
+    }
+},
 
-    rejectApplicant(eventId, userId) {
-        if (DataService.rejectApplicant(eventId, userId)) {
-            // Crear notificación para el buscador rechazado
-            const event = DataService.getEventById(eventId);
-            const user = DataService.getUserById(userId);
-            DataService.createNotification({
-                userId: userId,
-                type: 'APPLICATION_REJECTED',
-                title: '❌ Candidatura no aceptada',
-                message: `Tu candidatura para el evento "${event.title}" no ha sido aceptada. Sigue explorando otros eventos.`,
-                relatedId: eventId
-            });
-
-            this.showToast('Candidato rechazado', 'info');
-            this.manageEventApplicants(eventId); // Recargar
-            this.loadApplicationsView(); // Actualizar lista
-        } else {
-            this.showToast('Error al rechazar candidato', 'error');
-        }
-    },
-
-    viewApplicantProfile(userId) {
+rejectApplicant(eventId, userId) {
+    if (DataService.rejectApplicant(eventId, userId)) {
+        // Crear notificación para el buscador rechazado
+        const event = DataService.getEventById(eventId);
         const user = DataService.getUserById(userId);
-        if (!user) return;
+        DataService.createNotification({
+            userId: userId,
+            type: 'APPLICATION_REJECTED',
+            title: '❌ Candidatura no aceptada',
+            message: `Tu candidatura para el evento "${event.title}" no ha sido aceptada. Sigue explorando otros eventos.`,
+            relatedId: eventId
+        });
 
-        const modal = document.getElementById('event-detail-modal');
-        const content = document.getElementById('event-detail-content');
+        this.showToast('Candidato rechazado', 'info');
+        this.manageEventApplicants(eventId); // Recargar
+        this.loadApplicationsView(); // Actualizar lista
+    } else {
+        this.showToast('Error al rechazar candidato', 'error');
+    }
+},
 
-        const verificationBadge = user.verified === 'VERIFICADO'
-            ? '<span class="verification-badge">✓ Verificado</span>'
-            : user.verified === 'PENDIENTE'
-                ? '<span class="badge badge-warning">⏳ Verificación pendiente</span>'
-                : '<span class="badge" style="background: var(--color-error);">❌ No verificado</span>';
+viewApplicantProfile(userId) {
+    const user = DataService.getUserById(userId);
+    if (!user) return;
 
-        content.innerHTML = `
+    const modal = document.getElementById('event-detail-modal');
+    const content = document.getElementById('event-detail-content');
+
+    const verificationBadge = user.verified === 'VERIFICADO'
+        ? '<span class="verification-badge">✓ Verificado</span>'
+        : user.verified === 'PENDIENTE'
+            ? '<span class="badge badge-warning">⏳ Verificación pendiente</span>'
+            : '<span class="badge" style="background: var(--color-error);">❌ No verificado</span>';
+
+    content.innerHTML = `
             <div class="profile-grid">
                 <div class="profile-main">
                     <div class="card profile-header">
@@ -2437,77 +2478,77 @@ const app = {
             </div>
         `;
 
-        modal.classList.add('active');
-    },
+    modal.classList.add('active');
+},
 
-    deleteUser(userId) {
-        if (!confirm('¿Seguro que quieres eliminar este usuario?')) return;
-        DataService.deleteUser(userId);
-        this.switchAdminTab('users');
-        this.showToast('Usuario eliminado', 'success');
-    },
+deleteUser(userId) {
+    if (!confirm('¿Seguro que quieres eliminar este usuario?')) return;
+    DataService.deleteUser(userId);
+    this.switchAdminTab('users');
+    this.showToast('Usuario eliminado', 'success');
+},
 
-    deleteEvent(eventId) {
-        if (!confirm('¿Seguro que quieres eliminar este evento?')) return;
-        DataService.deleteEvent(eventId);
-        this.switchAdminTab('events');
-        this.showToast('Evento eliminado', 'success');
-    },
+deleteEvent(eventId) {
+    if (!confirm('¿Seguro que quieres eliminar este evento?')) return;
+    DataService.deleteEvent(eventId);
+    this.switchAdminTab('events');
+    this.showToast('Evento eliminado', 'success');
+},
 
-    // ===== CREAR EVENTOS =====
-    showCreateEvent() {
-        const modal = document.getElementById('create-event-modal');
-        modal.classList.add('active');
-    },
+// ===== CREAR EVENTOS =====
+showCreateEvent() {
+    const modal = document.getElementById('create-event-modal');
+    modal.classList.add('active');
+},
 
-    closeCreateEvent() {
-        const modal = document.getElementById('create-event-modal');
-        modal.classList.remove('active');
-    },
+closeCreateEvent() {
+    const modal = document.getElementById('create-event-modal');
+    modal.classList.remove('active');
+},
 
     async handleCreateEvent(event) {
-        event.preventDefault();
+    event.preventDefault();
 
-        const title = document.getElementById('event-title').value;
-        const date = document.getElementById('event-date').value;
-        const time = document.getElementById('event-time').value;
-        const location = document.getElementById('event-location').value;
+    const title = document.getElementById('event-title').value;
+    const date = document.getElementById('event-date').value;
+    const time = document.getElementById('event-time').value;
+    const location = document.getElementById('event-location').value;
 
-        let type = 'TRADICIONAL'; // Valor por defecto
-        const typeInput = document.querySelector('input[name="gangbang-level"]:checked');
-        if (typeInput) {
-            type = typeInput.value;
-        }
-
-        const capacity = document.getElementById('event-capacity').value;
-        const zone = document.getElementById('event-zone').value;
-        const description = document.getElementById('event-description').value;
-        const rules = document.getElementById('event-rules').value;
-
-        try {
-            this.showToast('Creando evento...', 'info');
-
-            await SupabaseService.createEvent({
-                title,
-                date,
-                time,
-                location,
-                gangbang_level: type, // Mapeo al nombre de col en Supabase
-                capacity: parseInt(capacity),
-                zone,
-                description,
-                rules
-            }, AppState.currentUser.id);
-
-            this.showToast('¡Evento creado exitosamente!', 'success');
-            this.closeCreateEvent();
-            // Ir a mis eventos
-            this.showView('applications'); // Recargará la vista automáticamente
-        } catch (error) {
-            console.error('Error creando evento:', error);
-            this.showToast('Error al crear el evento', 'error');
-        }
+    let type = 'TRADICIONAL'; // Valor por defecto
+    const typeInput = document.querySelector('input[name="gangbang-level"]:checked');
+    if (typeInput) {
+        type = typeInput.value;
     }
+
+    const capacity = document.getElementById('event-capacity').value;
+    const zone = document.getElementById('event-zone').value;
+    const description = document.getElementById('event-description').value;
+    const rules = document.getElementById('event-rules').value;
+
+    try {
+        this.showToast('Creando evento...', 'info');
+
+        await SupabaseService.createEvent({
+            title,
+            date,
+            time,
+            location,
+            gangbang_level: type, // Mapeo al nombre de col en Supabase
+            capacity: parseInt(capacity),
+            zone,
+            description,
+            rules
+        }, AppState.currentUser.id);
+
+        this.showToast('¡Evento creado exitosamente!', 'success');
+        this.closeCreateEvent();
+        // Ir a mis eventos
+        this.showView('applications'); // Recargará la vista automáticamente
+    } catch (error) {
+        console.error('Error creando evento:', error);
+        this.showToast('Error al crear el evento', 'error');
+    }
+}
 };
 
 // Inicializar cuando el DOM esté listo
