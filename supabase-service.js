@@ -612,7 +612,11 @@ const SupabaseService = {
     async getReviewsByReviewed(reviewedId) {
         const { data, error } = await supabaseClient
             .from('reviews')
-            .select('*')
+            .select(`
+                *,
+                reviewer:reviewer_id (username),
+                event:event_id (title, gangbang_level)
+            `)
             .eq('reviewed_id', reviewedId)
             .order('created_at', { ascending: false });
 

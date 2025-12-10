@@ -1421,7 +1421,20 @@ const app = {
                                             <div style="color: gold; letter-spacing: 2px;">${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)}</div>
                                             <span style="font-size: 0.8em; color: var(--color-text-secondary);">${new Date(review.created_at).toLocaleDateString()}</span>
                                         </div>
-                                        ${review.comment ? `<p style="font-size: 0.95em; color: var(--color-text); font-style: italic;">"${review.comment}"</p>` : ''}
+                                        
+                                        <div style="margin-bottom: 8px;">
+                                            ${review.reviewer ? `<div style="font-weight: 600; font-size: 0.95em; color: var(--color-text-primary); margin-bottom: 2px;">${review.reviewer.username}</div>` : '<div style="font-style: italic; color: var(--color-text-tertiary);">Usuario anónimo</div>'}
+                                            ${review.event ? `
+                                                <div style="font-size: 0.85em; color: var(--color-text-secondary);">
+                                                    <span>${review.event.title}</span>
+                                                    <span style="font-size: 0.75em; background: rgba(255,255,255,0.1); padding: 1px 6px; border-radius: 4px; margin-left: 6px; border: 1px solid rgba(255,255,255,0.2);">
+                                                        ${review.event.gangbang_level || 'General'}
+                                                    </span>
+                                                </div>
+                                            ` : ''}
+                                        </div>
+
+                                        ${review.comment ? `<p style="font-size: 0.95em; color: var(--color-text); font-style: italic; opacity: 0.9;">"${review.comment}"</p>` : ''}
                                     </div>
                                 `).join('')}
                             </div>
