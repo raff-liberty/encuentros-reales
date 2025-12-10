@@ -81,13 +81,17 @@ const app = {
 
     setupEventListeners() {
         // Formulario de autenticación
+        // Formulario de autenticación
+        // El listener se maneja vía onsubmit en HTML para evitar duplicidad
+        /*
         const authForm = document.getElementById('auth-form');
         if (authForm) {
             authForm.addEventListener('submit', (e) => {
                 e.preventDefault();
-                this.handleAuth();
+                this.handleAuth(e);
             });
         }
+        */
 
         // Formulario de crear evento
         const createEventForm = document.getElementById('create-event-form');
@@ -145,7 +149,7 @@ const app = {
     },
 
     async handleAuth(event) {
-        event.preventDefault();
+        if (event) event.preventDefault();
 
         const email = document.getElementById('auth-email').value;
         const password = document.getElementById('auth-password').value;
@@ -3161,3 +3165,15 @@ app.saveProfile = async function (event) {
         submitBtn.textContent = 'Guardar Cambios';
     }
 };
+
+// ===== INICIALIZACIÓN DE LA APP =====
+document.addEventListener('DOMContentLoaded', () => {
+    // Exponer app globalmente
+    window.app = app;
+    console.log('🏁 DOMContentLoaded: Inicializando app...');
+    if (app && app.init) {
+        app.init();
+    } else {
+        console.error('Fatal: app no está definido o no tiene método init');
+    }
+});
