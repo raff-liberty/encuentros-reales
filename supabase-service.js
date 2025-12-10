@@ -376,6 +376,48 @@ const SupabaseService = {
         return data;
     },
 
+    async updateApplicationStatus(applicationId, newStatus, eventId) {
+        // 1. Actualizar estado
+        const { data, error } = await supabaseClient
+            .from('applications')
+            .update({ status: newStatus })
+            .eq('id', applicationId)
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        // 2. Obtener info para notificar al usuario
+        try {
+            const { data: appData } = await supabaseClient
+                .from('applications')
+                .select(`
+                    user_id,
+                    event:events(title)
+                `)
+                .eq('id', applicationId)
+                .single();
+
+            if (appData && appData.event) {
+                const message = newStatus === 'ACEPTADO'
+                    ? `¡Felicidades! Has sido aceptado en el evento "${appData.event.title}"`
+                    : `Tu solicitud para el evento "${appData.event.title}" ha sido rechazada`;
+
+                await this.createNotification({
+                    user_id: appData.user_id,
+                    type: 'APPLICATION_STATUS',
+                    title: newStatus === 'ACEPTADO' ? '✅ Solicitud Aceptada' : '❌ Solicitud Rechazada',
+                    message: message,
+                    related_id: eventId
+                });
+            }
+        } catch (err) {
+            console.error('Error enviando notificación de estado:', err);
+        }
+
+        return data;
+    },
+
     async acceptApplicant(eventId, userId) {
         // 1. Actualizar estado
         const { data, error } = await supabaseClient

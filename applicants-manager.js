@@ -65,7 +65,10 @@ function renderApplicantCard(application, eventId) {
                              style="width: 50px; height: 50px; border-radius: 50%;">
                         <div>
                             <strong>${user.username || 'Usuario'}</strong>
-                            ${user.age ? `<div style="color: #999; font-size: 14px;">${user.age} años</div>` : ''}
+                            <div style="color: #999; font-size: 14px; display: flex; gap: 8px;">
+                                ${user.age ? `<span>${user.age} años</span>` : ''}
+                                ${user.rating ? `<span>⭐ ${Number(user.rating).toFixed(1)}</span>` : ''}
+                            </div>
                         </div>
                     </div>
                     ${user.bio ? `<p style="color: #999; font-size: 14px; margin-top: 8px;">${user.bio}</p>` : ''}
