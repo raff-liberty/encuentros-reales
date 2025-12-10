@@ -62,6 +62,14 @@ const app = {
             AppState.favorites = JSON.parse(savedFavorites);
         }
 
+        // Cargar postulaciones del usuario al iniciar
+        if (AppState.currentUser && AppState.currentUser.role === 'BUSCADOR') {
+            await this.refreshUserApplications();
+        }
+
+        // Cargar estadísticas de navegación
+        this.updateNavCounts();
+
         // Event listeners
         this.setupEventListeners();
 
@@ -248,8 +256,7 @@ const app = {
 
             // Renombrar "Mis Postulaciones" a "Mis Eventos"
             if (applicationsTab) {
-                const label = applicationsTab.querySelector('span:nth-child(2)');
-                if (label) label.textContent = 'Mis Eventos';
+                applicationsTab.querySelector('span:nth-child(2)').textContent = 'Mis Eventos (Creados)';
             }
         } else {
             // Buscadores ven todo
@@ -282,9 +289,35 @@ const app = {
                 createBtn.classList.add('hidden');
             }
         }
+    },
 
-        // Actualizar contador de notificaciones
-        this.updateNotificationsBadge();
+    async refreshUserApplications() {
+        if (!AppState.currentUser) return;
+        try {
+            const apps = await SupabaseService.getApplicationsByUser(AppState.currentUser.id);
+            AppState.myApplications = apps; // Cache en AppState
+            this.updateNavCounts();
+            // Si estamos en la vista de explorar, re-renderizar para actualizar botones
+            if (AppState.currentView === 'explore') {
+                this.loadExploreView();
+            }
+        } catch (e) {
+            console.error('Error refreshing applications:', e);
+        }
+    },
+
+    updateNavCounts() {
+        try {
+            // Mis Postulaciones
+            const appsCount = document.getElementById('applications-count');
+            if (appsCount && AppState.myApplications) {
+                appsCount.textContent = AppState.myApplications.length;
+                appsCount.classList.remove('hidden');
+            }
+
+            // Actualizar contador de notificaciones
+            this.updateNotificationsBadge();
+        } catch (e) { console.warn(e); }
     },
 
     // ===== NOTIFICACIONES =====
@@ -579,13 +612,37 @@ const app = {
                         </div>
                     </div>
 
+
                     <div class="event-actions">
                         <button class="btn btn-secondary" onclick="app.showEventDetail('${event.id}')">Ver detalles</button>
-                        <button class="btn btn-primary" onclick="app.applyToEvent('${event.id}')">Apuntarme</button>
+                        ${this.renderApplyButton(event)}
                     </div>
                 </div>
     `;
         }).join('');
+    },
+
+    renderApplyButton(event) {
+        if (!AppState.currentUser || AppState.currentUser.role !== 'BUSCADOR') return ''; // Solo buscadores
+
+        const myApp = (AppState.myApplications || []).find(a => a.event_id === event.id);
+
+        if (myApp) {
+            let label = 'Pendiente';
+            let style = 'background: var(--color-warning); color: black; opacity: 0.8; cursor: default;';
+
+            if (myApp.status === 'ACEPTADO') {
+                label = '¡Aceptado!';
+                style = 'background: var(--color-success); color: white; cursor: default;';
+            } else if (myApp.status === 'RECHAZADO') {
+                label = 'Rechazado';
+                style = 'background: var(--color-error); color: white; cursor: default;';
+            }
+
+            return `<button class="btn" style="${style}" disabled>${label}</button>`;
+        }
+
+        return `<button class="btn btn-primary" onclick="app.applyToEvent('${event.id}')">Apuntarme ❤️</button>`;
     },
 
     // ===== FAVORITOS =====
@@ -1880,11 +1937,13 @@ const app = {
 
                 <div class="detail-section">
                     <h4>Organizadora</h4>
-                    <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+                    <div style="display: flex; align-items: center; gap: var(--spacing-md); cursor: pointer;" 
+                         onclick="app.viewUserProfile('${organizer.id}')">
                         <img src="${organizer.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${organizer.username}`}" 
                              style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">
                         <div>
                             <strong>${organizer.username}</strong>
+                            <small style="display:block; color:var(--color-text-secondary)">Ver perfil</small>
                         </div>
                     </div>
                 </div>
@@ -1897,15 +1956,27 @@ const app = {
                 ` : ''}
 
                 ${isOrganizer ? `
-                    <div style="margin-top: var(--spacing-lg); padding-top: var(--spacing-md); border-top: 1px solid var(--color-border); display: flex; gap: var(--spacing-md);">
-                        <button class="btn btn-secondary" onclick="app.editEvent('${event.id}')">✏️ Modificar</button>
-                        <button class="btn btn-danger" onclick="app.confirmDeleteEvent('${event.id}')" style="background-color: var(--color-error); color: white;">🗑️ Borrar Evento</button>
+                    <div style="margin-top: var(--spacing-lg); padding-top: var(--spacing-md); border-top: 1px solid var(--color-border); display: grid; gap: var(--spacing-md);">
+                        
+                        ${event.status === 'ACTIVO' ? `
+                            <button class="btn btn-primary btn-block" onclick="app.manageEventApplicants('${event.id}')">
+                                👥 Gestionar Candidatos
+                            </button>
+                            <button class="btn btn-warning btn-block" onclick="app.finalizeEvent('${event.id}')" style="background-color: var(--color-warning); color: black;">
+                                🏁 Finalizar Evento
+                            </button>
+                        ` : event.status === 'FINALIZADO' ? `
+                            <div class="alert alert-success">✅ Este evento ha finalizado</div>
+                        ` : ''}
+
+                        <div style="display: flex; gap: 10px; margin-top: 10px;">
+                            <button class="btn btn-secondary flex-1" onclick="app.editEvent('${event.id}')">✏️ Editar</button>
+                            <button class="btn btn-danger flex-1" onclick="app.confirmDeleteEvent('${event.id}')">🗑️ Borrar</button>
+                        </div>
                     </div>
                 ` : isBuscador ? `
                     <div style="margin-top: var(--spacing-lg);">
-                        <button class="btn btn-primary btn-block" onclick="app.applyToEvent('${event.id}')">
-                            Me interesa ❤️
-                        </button>
+                        ${this.renderDetailActionButtons(event)}
                     </div>
                 ` : ''}
             </div>
@@ -1932,6 +2003,128 @@ const app = {
         } catch (error) {
             console.error('Error borrando evento:', error);
             alert('Error al borrar el evento: ' + error.message);
+        }
+    },
+
+    async finalizeEvent(eventId) {
+        if (!confirm('¿Estás segura de finalizar el evento?\n\nEsto habilitará las votaciones para los participantes.')) return;
+
+        try {
+            await SupabaseService.finalizeEvent(eventId);
+            this.showToast('¡Evento finalizado! Ahora pueden valorarte.', 'success');
+            this.showEventDetail(eventId); // Recargar ver cambios
+        } catch (e) {
+            console.error(e);
+            this.showToast('Error finalizando evento', 'error');
+        }
+    },
+
+    renderDetailActionButtons(event) {
+        const myApp = (AppState.myApplications || []).find(a => a.event_id === event.id);
+
+        if (!myApp) {
+            return `<button class="btn btn-primary btn-block" onclick="app.applyToEvent('${event.id}')">Me interesa ❤️</button>`;
+        }
+
+        if (event.status === 'FINALIZADO' && (myApp.status === 'ACEPTADO' || myApp.status === 'FINALIZADO')) {
+            return `<button class="btn btn-primary btn-block" style="background: gold; color: black;" onclick="app.openRateModal('${event.id}', '${event.organizer_id}')">⭐ Valorar Organizadora</button>`;
+        }
+
+        if (myApp.status === 'PENDIENTE') {
+            return `<div class="p-md text-center bg-gray rounded">⏳ Tu solicitud está pendiente de respuesta</div>`;
+        }
+
+        if (myApp.status === 'ACEPTADO') {
+            return `
+                <div class="p-md bg-success-light rounded mb-md">
+                    <h3>¡Felicidades! 🎉</h3>
+                    <p>Has sido aceptado en este evento.</p>
+                    <div style="margin-top: 10px; font-weight: bold;">📍 Ubicación: ${event.location || 'Se revelará pronto'}</div>
+                </div>
+            `;
+        }
+
+        return '';
+    },
+
+    async openRateModal(eventId, targetUserId) {
+        // Verificar si existe el modal, si no, crearlo dinámicamente
+        let modal = document.getElementById('rate-modal');
+        if (!modal) {
+            document.body.insertAdjacentHTML('beforeend', `
+                <div id="rate-modal" class="modal">
+                    <div class="modal-content" style="max-width: 400px; text-align: center;">
+                        <span class="close-modal" onclick="document.getElementById('rate-modal').classList.remove('active')">&times;</span>
+                        <h2 style="margin-bottom: var(--spacing-md);">Valorar Experiencia</h2>
+                        <div id="rate-target-info" style="margin-bottom: var(--spacing-lg);"></div>
+                        
+                        <div class="star-rating" style="font-size: 2rem; margin-bottom: var(--spacing-md);">
+                            <span onclick="app.setRating(1)">★</span>
+                            <span onclick="app.setRating(2)">★</span>
+                            <span onclick="app.setRating(3)">★</span>
+                            <span onclick="app.setRating(4)">★</span>
+                            <span onclick="app.setRating(5)">★</span>
+                        </div>
+                        <input type="hidden" id="rate-value" value="0">
+                        
+                        <textarea id="rate-comment" placeholder="Comparte tu experiencia... (opcional)" 
+                                  style="width: 100%; height: 100px; padding: 10px; margin-bottom: 10px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-input-bg); color: var(--color-text);"></textarea>
+                        
+                        <button class="btn btn-primary btn-block" onclick="app.submitRating('${eventId}', '${targetUserId}')">Enviar Valoración</button>
+                    </div>
+                </div>
+            `);
+            modal = document.getElementById('rate-modal');
+        }
+
+        const targetUser = await SupabaseService.getUserById(targetUserId);
+
+        const infoDiv = document.getElementById('rate-target-info');
+        infoDiv.innerHTML = `
+            <img src="${targetUser.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${targetUser.username}`}" 
+                 style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 10px;">
+            <p>¿Qué tal fue tu experiencia con <strong>${targetUser.username}</strong>?</p>
+        `;
+
+        // Reset stars
+        this.setRating(0);
+        document.getElementById('rate-comment').value = '';
+
+        modal.classList.add('active');
+    },
+
+    setRating(value) {
+        document.getElementById('rate-value').value = value;
+        const stars = document.querySelectorAll('.star-rating span');
+        stars.forEach((star, index) => {
+            star.style.color = index < value ? 'gold' : 'gray';
+            star.style.cursor = 'pointer';
+        });
+    },
+
+    async submitRating(eventId, reviewedId) {
+        const rating = parseInt(document.getElementById('rate-value').value);
+        const comment = document.getElementById('rate-comment').value;
+
+        if (rating === 0) {
+            this.showToast('Por favor selecciona una puntuación', 'warning');
+            return;
+        }
+
+        try {
+            await SupabaseService.submitEventRatings([{
+                reviewer_id: AppState.currentUser.id,
+                reviewed_id: reviewedId,
+                event_id: eventId,
+                rating: rating,
+                comment: comment
+            }]);
+
+            this.showToast('¡Gracias por tu valoración!', 'success');
+            document.getElementById('rate-modal').classList.remove('active');
+        } catch (error) {
+            console.error('Error enviando valoración:', error);
+            this.showToast('Error al enviar valoración', 'error');
         }
     },
 
@@ -2090,22 +2283,54 @@ const app = {
             console.error('Error rechazando:', error);
             this.showToast('Error rechazando candidato', 'error');
         }
+    }, title: '✅ ¡Has sido aceptado!',
+    message: `Has sido aceptado en el evento "${event.title}". Fecha: ${this.formatDate(event.date)} a las ${event.time}. Ubicación: ${event.location}`,
+    relatedId: eventId
+});
+
+this.showToast('Candidato aceptado', 'success');
+this.manageEventApplicants(eventId); // Recargar
+this.loadApplicationsView(); // Actualizar lista
+        } else {
+    this.showToast('Error al aceptar candidato', 'error');
+}
     },
 
-    viewApplicantProfile(userId) {
+rejectApplicant(eventId, userId) {
+    if (DataService.rejectApplicant(eventId, userId)) {
+        // Crear notificación para el buscador rechazado
+        const event = DataService.getEventById(eventId);
         const user = DataService.getUserById(userId);
-        if (!user) return;
+        DataService.createNotification({
+            userId: userId,
+            type: 'APPLICATION_REJECTED',
+            title: '❌ Candidatura no aceptada',
+            message: `Tu candidatura para el evento "${event.title}" no ha sido aceptada. Sigue explorando otros eventos.`,
+            relatedId: eventId
+        });
 
-        const modal = document.getElementById('event-detail-modal');
-        const content = document.getElementById('event-detail-content');
+        this.showToast('Candidato rechazado', 'info');
+        this.manageEventApplicants(eventId); // Recargar
+        this.loadApplicationsView(); // Actualizar lista
+    } else {
+        this.showToast('Error al rechazar candidato', 'error');
+    }
+},
 
-        const verificationBadge = user.verified === 'VERIFICADO'
-            ? '<span class="verification-badge">✓ Verificado</span>'
-            : user.verified === 'PENDIENTE'
-                ? '<span class="badge badge-warning">⏳ Verificación pendiente</span>'
-                : '<span class="badge" style="background: var(--color-error);">❌ No verificado</span>';
+viewApplicantProfile(userId) {
+    const user = DataService.getUserById(userId);
+    if (!user) return;
 
-        content.innerHTML = `
+    const modal = document.getElementById('event-detail-modal');
+    const content = document.getElementById('event-detail-content');
+
+    const verificationBadge = user.verified === 'VERIFICADO'
+        ? '<span class="verification-badge">✓ Verificado</span>'
+        : user.verified === 'PENDIENTE'
+            ? '<span class="badge badge-warning">⏳ Verificación pendiente</span>'
+            : '<span class="badge" style="background: var(--color-error);">❌ No verificado</span>';
+
+    content.innerHTML = `
             <div class="profile-grid">
                 <div class="profile-main">
                     <div class="card profile-header">
@@ -2202,77 +2427,77 @@ const app = {
             </div>
         `;
 
-        modal.classList.add('active');
-    },
+    modal.classList.add('active');
+},
 
-    deleteUser(userId) {
-        if (!confirm('¿Seguro que quieres eliminar este usuario?')) return;
-        DataService.deleteUser(userId);
-        this.switchAdminTab('users');
-        this.showToast('Usuario eliminado', 'success');
-    },
+deleteUser(userId) {
+    if (!confirm('¿Seguro que quieres eliminar este usuario?')) return;
+    DataService.deleteUser(userId);
+    this.switchAdminTab('users');
+    this.showToast('Usuario eliminado', 'success');
+},
 
-    deleteEvent(eventId) {
-        if (!confirm('¿Seguro que quieres eliminar este evento?')) return;
-        DataService.deleteEvent(eventId);
-        this.switchAdminTab('events');
-        this.showToast('Evento eliminado', 'success');
-    },
+deleteEvent(eventId) {
+    if (!confirm('¿Seguro que quieres eliminar este evento?')) return;
+    DataService.deleteEvent(eventId);
+    this.switchAdminTab('events');
+    this.showToast('Evento eliminado', 'success');
+},
 
-    // ===== CREAR EVENTOS =====
-    showCreateEvent() {
-        const modal = document.getElementById('create-event-modal');
-        modal.classList.add('active');
-    },
+// ===== CREAR EVENTOS =====
+showCreateEvent() {
+    const modal = document.getElementById('create-event-modal');
+    modal.classList.add('active');
+},
 
-    closeCreateEvent() {
-        const modal = document.getElementById('create-event-modal');
-        modal.classList.remove('active');
-    },
+closeCreateEvent() {
+    const modal = document.getElementById('create-event-modal');
+    modal.classList.remove('active');
+},
 
     async handleCreateEvent(event) {
-        event.preventDefault();
+    event.preventDefault();
 
-        const title = document.getElementById('event-title').value;
-        const date = document.getElementById('event-date').value;
-        const time = document.getElementById('event-time').value;
-        const location = document.getElementById('event-location').value;
+    const title = document.getElementById('event-title').value;
+    const date = document.getElementById('event-date').value;
+    const time = document.getElementById('event-time').value;
+    const location = document.getElementById('event-location').value;
 
-        let type = 'TRADICIONAL'; // Valor por defecto
-        const typeInput = document.querySelector('input[name="gangbang-level"]:checked');
-        if (typeInput) {
-            type = typeInput.value;
-        }
-
-        const capacity = document.getElementById('event-capacity').value;
-        const zone = document.getElementById('event-zone').value;
-        const description = document.getElementById('event-description').value;
-        const rules = document.getElementById('event-rules').value;
-
-        try {
-            this.showToast('Creando evento...', 'info');
-
-            await SupabaseService.createEvent({
-                title,
-                date,
-                time,
-                location,
-                gangbang_level: type, // Mapeo al nombre de col en Supabase
-                capacity: parseInt(capacity),
-                zone,
-                description,
-                rules
-            }, AppState.currentUser.id);
-
-            this.showToast('¡Evento creado exitosamente!', 'success');
-            this.closeCreateEvent();
-            // Ir a mis eventos
-            this.showView('applications'); // Recargará la vista automáticamente
-        } catch (error) {
-            console.error('Error creando evento:', error);
-            this.showToast('Error al crear el evento', 'error');
-        }
+    let type = 'TRADICIONAL'; // Valor por defecto
+    const typeInput = document.querySelector('input[name="gangbang-level"]:checked');
+    if (typeInput) {
+        type = typeInput.value;
     }
+
+    const capacity = document.getElementById('event-capacity').value;
+    const zone = document.getElementById('event-zone').value;
+    const description = document.getElementById('event-description').value;
+    const rules = document.getElementById('event-rules').value;
+
+    try {
+        this.showToast('Creando evento...', 'info');
+
+        await SupabaseService.createEvent({
+            title,
+            date,
+            time,
+            location,
+            gangbang_level: type, // Mapeo al nombre de col en Supabase
+            capacity: parseInt(capacity),
+            zone,
+            description,
+            rules
+        }, AppState.currentUser.id);
+
+        this.showToast('¡Evento creado exitosamente!', 'success');
+        this.closeCreateEvent();
+        // Ir a mis eventos
+        this.showView('applications'); // Recargará la vista automáticamente
+    } catch (error) {
+        console.error('Error creando evento:', error);
+        this.showToast('Error al crear el evento', 'error');
+    }
+}
 };
 
 // Inicializar cuando el DOM esté listo
