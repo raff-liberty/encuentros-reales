@@ -1955,122 +1955,140 @@ const app = {
     },
 
     // ===== GESTIÓN DE CANDIDATOS (OFERENTES) =====
-    manageEventApplicants(eventId) {
-        const event = DataService.getEventById(eventId);
-        if (!event) return;
-
-        const modal = document.getElementById('event-detail-modal');
+    async manageEventApplicants(eventId) {
         const content = document.getElementById('event-detail-content');
-        const applicants = event.applicants || [];
 
-        if (applicants.length === 0) {
-            this.showToast('No hay candidaturas para este evento', 'info');
-            return;
-        }
+        // Mostrar estado de carga
+        content.innerHTML = '<div class="loading-spinner"></div>';
 
-        content.innerHTML = `
-            <div class="event-detail">
-                <h3>Gestionar Candidatos: ${event.title}</h3>
-                <p style="color: var(--color-text-secondary); margin: var(--spacing-sm) 0;">
-                    ${applicants.length} candidatos totales
-                </p>
-                
-                <div style="margin-top: var(--spacing-lg);">
-                    ${applicants.map(applicant => {
-            const user = DataService.getUserById(applicant.userId);
-            if (!user) return '';
+        try {
+            // 1. Obtener evento y postulaciones REALES de Supabase
+            const [event, applications] = await Promise.all([
+                SupabaseService.getEventById(eventId),
+                SupabaseService.getEventApplications(eventId)
+            ]);
 
-            return `
-                            <div class="card mb-md" style="border-left: 4px solid ${applicant.status === 'ACEPTADO' ? 'var(--color-success)' :
-                    applicant.status === 'RECHAZADO' ? 'var(--color-error)' :
-                        'var(--color-warning)'
-                };">
-                                <div style="display: flex; justify-content: space-between; align-items: start;">
-                                    <div style="display: flex; gap: var(--spacing-md); align-items: center;">
-                                        <img src="${user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`}" 
-                                             style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">
-                                        <div>
-                                            <strong>${user.username}</strong>
-                                            <div style="color: var(--color-text-secondary); font-size: var(--font-size-sm);">
-                                                ⭐ ${(user.rating || 0).toFixed(1)} (${user.reviewsCount || 0} valoraciones)
+            if (!event) throw new Error('Evento no encontrado');
+
+            if (!applications || applications.length === 0) {
+                this.showToast('No hay candidaturas para este evento aún', 'info');
+                // Volver a mostrar el detalle normal
+                this.showEventDetail(eventId);
+                return;
+            }
+
+            content.innerHTML = `
+                <div class="event-detail">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--spacing-md);">
+                        <h3>Gestionar Candidatos: ${event.title}</h3>
+                        <button class="btn btn-text btn-small" onclick="app.showEventDetail('${eventId}')">⬅ Volver al detalle</button>
+                    </div>
+                    
+                    <p style="color: var(--color-text-secondary); margin-bottom: var(--spacing-lg);">
+                        ${applications.length} candidatos postulados
+                    </p>
+                    
+                    <div style="display: flex; flex-direction: column; gap: var(--spacing-md);">
+                        ${applications.map(app => {
+                // Extraer el usuario de la relación 'applicant' (que viene del join en SupabaseService)
+                const user = app.applicant;
+                if (!user) return ''; // Skip si no hay usuario
+
+                // Calcular validación visual
+                const borderColor = app.status === 'ACEPTADO' ? 'var(--color-success)' :
+                    app.status === 'RECHAZADO' ? 'var(--color-error)' :
+                        app.status === 'FINALIZADO' ? 'var(--color-accent)' :
+                            'var(--color-warning)'; // Pendiente
+
+                // Normalizar avatar
+                const avatarUrl = user.avatar || user.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`;
+
+                return `
+                                <div class="card" style="border-left: 4px solid ${borderColor}; padding: var(--spacing-md);">
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: var(--spacing-sm);">
+                                        
+                                        <!-- Info Usuario -->
+                                        <div style="display: flex; gap: var(--spacing-md); align-items: center; cursor: pointer;" 
+                                             onclick="app.viewUserProfile('${user.id}')">
+                                            <img src="${avatarUrl}" 
+                                                 style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">
+                                            <div>
+                                                <strong>${user.username}</strong>
+                                                <div style="color: var(--color-text-secondary); font-size: var(--font-size-sm);">
+                                                    ⭐ ${(user.rating || 0).toFixed(1)} <span style="font-size: 0.8em;">(${user.reviewsCount || 0} reviews)</span>
+                                                </div>
                                             </div>
-                                            ${user.bio ? `
-                                                <p style="color: var(--color-text-secondary); font-size: var(--font-size-sm); margin-top: 4px;">
-                                                    ${user.bio}
-                                                </p>
+                                        </div>
+
+                                        <!-- Estado y Acciones -->
+                                        <div style="text-align: right;">
+                                            <div style="margin-bottom: 5px; font-weight: bold; font-size: 0.9em; color:${borderColor}">
+                                                ${app.status}
+                                            </div>
+
+                                            ${app.status === 'PENDIENTE' ? `
+                                                <div style="display: flex; gap: 5px;">
+                                                    <button class="btn btn-success btn-small" 
+                                                            onclick="app.acceptCandidate('${app.id}', '${eventId}', '${user.id}')"
+                                                            title="Aceptar Candidato">
+                                                        ✅ Aceptar
+                                                    </button>
+                                                    <button class="btn btn-danger btn-small" 
+                                                            onclick="app.rejectCandidate('${app.id}', '${eventId}')"
+                                                            title="Rechazar Candidato">
+                                                        ❌ Rechazar
+                                                    </button>
+                                                </div>
+                                            ` : app.status === 'ACEPTADO' ? `
+                                                <small style="color: var(--color-success);">¡Seleccionado!</small>
                                             ` : ''}
                                         </div>
                                     </div>
-                                    <span class="badge badge-${applicant.status === 'ACEPTADO' ? 'success' :
-                    applicant.status === 'RECHAZADO' ? 'error' :
-                        'warning'
-                }">
-                                        ${applicant.status}
-                                    </span>
+                                    
+                                    <!-- Bio / Mensaje -->
+                                    ${user.bio ? `
+                                        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--color-border); font-size: 0.9em; color: var(--color-text-secondary);">
+                                            "${user.bio}"
+                                        </div>
+                                    ` : ''}
                                 </div>
-                                
-                                ${applicant.status === 'PENDIENTE' ? `
-                                    <div style="display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-md);">
-                                        <button class="btn btn-secondary btn-small" onclick="app.viewApplicantProfile('${user.id}')">
-                                            👤 Ver perfil
-                                        </button>
-                                        <button class="btn btn-success btn-small" onclick="app.acceptApplicant('${eventId}', '${user.id}')">
-                                            ✅ Aceptar
-                                        </button>
-                                        <button class="btn btn-error btn-small" onclick="app.rejectApplicant('${eventId}', '${user.id}')">
-                                            ❌ Rechazar
-                                        </button>
-                                    </div>
-                                ` : ''}
-                            </div>
-                        `;
-        }).join('')}
+                            `;
+            }).join('')}
+                    </div>
                 </div>
-            </div>
-        `;
+            `;
 
-        modal.classList.add('active');
-    },
-
-    acceptApplicant(eventId, userId) {
-        if (DataService.acceptApplicant(eventId, userId)) {
-            // Crear notificación para el buscador aceptado
-            const event = DataService.getEventById(eventId);
-            const user = DataService.getUserById(userId);
-            DataService.createNotification({
-                userId: userId,
-                type: 'APPLICATION_ACCEPTED',
-                title: '✅ ¡Has sido aceptado!',
-                message: `Has sido aceptado en el evento "${event.title}". Fecha: ${this.formatDate(event.date)} a las ${event.time}. Ubicación: ${event.location}`,
-                relatedId: eventId
-            });
-
-            this.showToast('Candidato aceptado', 'success');
-            this.manageEventApplicants(eventId); // Recargar
-            this.loadApplicationsView(); // Actualizar lista
-        } else {
-            this.showToast('Error al aceptar candidato', 'error');
+        } catch (error) {
+            console.error('Error gestionando candidatos:', error);
+            content.innerHTML = `<div class="error-msg">Error cargando candidatos: ${error.message}</div>`;
         }
     },
 
-    rejectApplicant(eventId, userId) {
-        if (DataService.rejectApplicant(eventId, userId)) {
-            // Crear notificación para el buscador rechazado
-            const event = DataService.getEventById(eventId);
-            const user = DataService.getUserById(userId);
-            DataService.createNotification({
-                userId: userId,
-                type: 'APPLICATION_REJECTED',
-                title: '❌ Candidatura no aceptada',
-                message: `Tu candidatura para el evento "${event.title}" no ha sido aceptada. Sigue explorando otros eventos.`,
-                relatedId: eventId
-            });
+    async acceptCandidate(applicationId, eventId, userId) {
+        if (!confirm('¿Aceptar a este usuario para el evento? Se le enviará una notificación.')) return;
 
-            this.showToast('Candidato rechazado', 'info');
-            this.manageEventApplicants(eventId); // Recargar
-            this.loadApplicationsView(); // Actualizar lista
-        } else {
-            this.showToast('Error al rechazar candidato', 'error');
+        try {
+            await SupabaseService.acceptApplicant(eventId, userId);
+
+            this.showToast('Candidato aceptado exitosamente', 'success');
+            // Recargar la lista
+            this.manageEventApplicants(eventId);
+        } catch (error) {
+            console.error('Error aceptando:', error);
+            this.showToast('Error aceptando candidato', 'error');
+        }
+    },
+
+    async rejectCandidate(applicationId, eventId) {
+        if (!confirm('¿Rechazar esta solicitud?')) return;
+
+        try {
+            await SupabaseService.updateApplicationStatus(applicationId, 'RECHAZADO', eventId);
+            this.showToast('Solicitud rechazada', 'success');
+            this.manageEventApplicants(eventId);
+        } catch (error) {
+            console.error('Error rechazando:', error);
+            this.showToast('Error rechazando candidato', 'error');
         }
     },
 
