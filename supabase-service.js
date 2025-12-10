@@ -449,10 +449,10 @@ const SupabaseService = {
         return data;
     },
 
-    async createNotification(notifData) {
+    async createNotification(notification) {
         const { data, error } = await supabaseClient
             .from('notifications')
-            .insert([notifData])
+            .insert([notification])
             .select()
             .single();
 
