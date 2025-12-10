@@ -803,6 +803,8 @@ const app = {
             container.innerHTML = '<div class="loader">Cargando postulaciones...</div>';
 
             const applications = await SupabaseService.getApplicationsByUser(user.id);
+            const reviews = await SupabaseService.getReviewsByReviewer(user.id);
+            const reviewedEventIds = new Set(reviews.map(r => r.event_id));
 
             if (applications.length === 0) {
                 container.innerHTML = `
@@ -828,7 +830,7 @@ const app = {
                     <h3 style="margin-bottom: var(--spacing-md); color: var(--color-success);">
                         ✅ Aceptadas (${accepted.length})
                     </h3>
-                    ${accepted.map(app => this.renderApplicationCard(app, 'ACEPTADO')).join('')}
+                    ${accepted.map(app => this.renderApplicationCard(app, 'ACEPTADO', reviewedEventIds.has(app.event.id))).join('')}
                 ` : ''
                 }
                 
@@ -836,7 +838,7 @@ const app = {
                     <h3 style="margin-bottom: var(--spacing-md); margin-top: var(--spacing-xl); color: var(--color-warning);">
                         ⏳ Pendientes (${pending.length})
                     </h3>
-                    ${pending.map(app => this.renderApplicationCard(app, 'PENDIENTE')).join('')}
+                    ${pending.map(app => this.renderApplicationCard(app, 'PENDIENTE', reviewedEventIds.has(app.event.id))).join('')}
                 ` : ''
                 }
                 
@@ -865,7 +867,7 @@ const app = {
         }
     },
 
-    renderApplicationCard(application, status) {
+    renderApplicationCard(application, status, hasVoted = false) {
         // En Supabase, el evento viene como application.event gracias al JOIN
         const event = application.event;
         if (!event) {
@@ -925,10 +927,16 @@ const app = {
                             📍 <strong>Ubicación exacta:</strong> ${event.location}
                         </p>
                         ${status === 'FINALIZADO' ? `
-                            <button class="btn btn-primary" style="margin-top: 10px; width: 100%;" 
-                                onclick="app.rateOrganizer('${event.organizer_id}', '${event.id}')">
-                                ⭐ Valorar Organizador
-                            </button>
+                            ${hasVoted ? `
+                                <div style="margin-top: 10px; background: rgba(0, 0, 0, 0.2); padding: 8px; border-radius: 4px; text-align: center; color: var(--color-text-secondary);">
+                                    ✅ Valoración realizada
+                                </div>
+                            ` : `
+                                <button class="btn btn-primary" style="margin-top: 10px; width: 100%;" 
+                                    onclick="app.rateOrganizer('${event.organizer_id}', '${event.id}')">
+                                    ⭐ Valorar Organizador
+                                </button>
+                            `}
                         ` : ''}
                     </div>
                 ` : status === 'PENDIENTE' ? `

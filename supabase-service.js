@@ -353,7 +353,10 @@ const SupabaseService = {
             .from('applications')
             .select(`
         *,
-        event:events(*)
+        event:events(
+          *,
+          organizer:organizer_id(*)
+        )
       `)
             .eq('user_id', userId)
             .order('created_at', { ascending: false });
@@ -594,6 +597,16 @@ const SupabaseService = {
             .eq('id', notificationId);
 
         if (error) throw error;
+    },
+
+    async getReviewsByReviewer(reviewerId) {
+        const { data, error } = await supabaseClient
+            .from('reviews')
+            .select('*')
+            .eq('reviewer_id', reviewerId);
+
+        if (error) throw error;
+        return data;
     },
 
     async markAllNotificationsAsRead(userId) {
