@@ -206,7 +206,12 @@ const app = {
 
         // Cargar postulaciones PRIMERO para asegurar estado correcto en UI de eventos
         if (AppState.currentUser.role === 'BUSCADOR') {
-            await this.refreshUserApplications();
+            try {
+                await this.refreshUserApplications();
+            } catch (error) {
+                console.error('Error pre-fetching applications:', error);
+                // No bloqueamos la carga de la app si esto falla
+            }
         }
 
         // Renderizar navegación según rol
