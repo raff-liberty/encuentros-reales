@@ -885,7 +885,11 @@ const app = {
             status = 'FINALIZADO';
         }
 
-        // El organizador necesitaría otro JOIN, por ahora solo mostramos info básica
+        // Obtener organizador
+        let organizer = event.organizer;
+        if (Array.isArray(organizer)) organizer = organizer[0];
+        if (!organizer) organizer = { username: 'Desconocido' };
+
         const statusColors = {
             'ACEPTADO': 'var(--color-success)',
             'FINALIZADO': 'var(--color-success)', // Mismo color éxito
@@ -896,9 +900,18 @@ const app = {
         return `
             <div class="card mb-md" style="border-left: 4px solid ${statusColors[status] || 'var(--color-text-secondary)'};">
                 <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--spacing-md);">
-                    <div>
-                        <h3>${event.title}</h3>
-                        <p style="color: var(--color-text-secondary); font-size: var(--font-size-sm);">
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
+                            <h3 style="margin: 0;">${event.title}</h3>
+                            ${event.gangbang_level ? `<span class="badge badge-info" style="font-size: 0.75em;">${event.gangbang_level}</span>` : ''}
+                        </div>
+
+                        <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px; margin-bottom: 8px; padding: 4px 8px; background: rgba(255,255,255,0.05); border-radius: 20px; width: fit-content; cursor: pointer;" onclick="${organizer.id ? `app.viewUserProfile('${organizer.id}')` : ''}">
+                            <img src="${organizer.avatar || organizer.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg'}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover;">
+                            <span style="font-size: 0.85em; color: var(--color-text-secondary);">Organiza: <strong style="color: var(--color-text-primary);">${organizer.username}</strong></span>
+                        </div>
+
+                        <p style="color: var(--color-text-secondary); font-size: var(--font-size-sm); margin-top: 5px;">
                             ${event.description}
                         </p>
                     </div>
