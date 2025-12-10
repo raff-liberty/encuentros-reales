@@ -1216,6 +1216,10 @@ const app = {
 
     async viewUserProfile(userId) {
         try {
+            // Limpiar modal previo si existe para evitar duplicados y conflictos de z-index
+            const existingModal = document.getElementById('user-profile-modal');
+            if (existingModal) existingModal.remove();
+
             // Obtener datos completos del usuario
             const user = await SupabaseService.getUserById(userId);
 
@@ -1224,11 +1228,10 @@ const app = {
                 return;
             }
 
-            // Crear modal con perfil del usuario
+            // Crear modal con perfil del usuario con capa superior
             const modal = document.createElement('div');
-            modal.className = 'modal';
+            modal.className = 'modal modal-top-layer';
             modal.id = 'user-profile-modal';
-            modal.style.zIndex = '10100'; // Asegurar que quede encima de otros modales
 
             modal.innerHTML = `
                 <div class="modal-content" style="max-width: 600px;">
