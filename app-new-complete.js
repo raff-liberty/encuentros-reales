@@ -2380,12 +2380,34 @@ const app = {
         }
     },
 
-    viewApplicantProfile(userId) {
-        const user = DataService.getUserById(userId);
-        if (!user) return;
+    async viewUserProfile(userId) {
+        try {
+            const user = await SupabaseService.getUserById(userId);
+            if (!user) {
+                this.showToast('Error: Usuario no encontrado', 'error');
+                return;
+            }
+            this._renderProfileModal(user);
+        } catch (error) {
+            console.error('Error viewing profile:', error);
+            this.showToast('Error cargando perfil del usuario', 'error');
+        }
+    },
 
+    async viewApplicantProfile(userId) {
+        try {
+            const user = await SupabaseService.getUserById(userId);
+            if (!user) return;
+            this._renderProfileModal(user);
+        } catch (error) {
+            console.error('Error viewing applicant:', error);
+        }
+    },
+
+    _renderProfileModal(user) {
         const modal = document.getElementById('event-detail-modal');
         const content = document.getElementById('event-detail-content');
+
 
         const verificationBadge = user.verified === 'VERIFICADO'
             ? '<span class="verification-badge">✓ Verificado</span>'
