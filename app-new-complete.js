@@ -204,12 +204,10 @@ const app = {
         document.getElementById('app-container').classList.remove('hidden');
         this.updateHeader();
 
-        // Cargar postulaciones PRIMERO pero SIN BLOQUEAR la UI (setTimeout 0)
+        // Cargar postulaciones PRIMERO pero SIN BLOQUEAR la UI (setTimeout 500ms para asegurar carga)
         if (AppState.currentUser.role === 'BUSCADOR') {
-            setTimeout(() => this.refreshUserApplications(), 0);
+            setTimeout(() => this.refreshUserApplications(), 500);
         }
-
-
 
         // Renderizar navegación según rol
         this.renderNavigation();
@@ -257,6 +255,10 @@ const app = {
         this.notificationPoller = setInterval(() => {
             if (AppState.currentUser) {
                 this.updateNotificationsBadge();
+                // Sincronizar también las postulaciones para mantener contadores al día
+                if (AppState.currentUser.role === 'BUSCADOR') {
+                    this.refreshUserApplications();
+                }
                 // Si el panel de notificaciones está abierto, recargarlo
                 const panel = document.getElementById('notifications-panel');
                 if (panel && !panel.classList.contains('hidden')) {
