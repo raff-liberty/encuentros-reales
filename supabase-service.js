@@ -499,6 +499,16 @@ const SupabaseService = {
         return event;
     },
 
+    async submitEventRatings(ratings) {
+        if (!ratings || ratings.length === 0) return;
+
+        const { error } = await supabaseClient
+            .from('reviews')
+            .insert(ratings);
+
+        if (error) throw error;
+    },
+
     async notifyAcceptedParticipants(eventId, type, title, message) {
         // Obtener IDs de usuarios aceptados
         const { data: applications } = await supabaseClient

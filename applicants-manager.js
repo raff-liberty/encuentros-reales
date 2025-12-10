@@ -166,15 +166,131 @@ window.closeSelection = async function (eventId) {
 };
 
 window.finalizeEventManager = async function (eventId) {
-    if (!confirm('🏁 ¿FINALIZAR EVENTO?\n\nEsto marcará el evento como concluido.\n\n¿Estás seguro?')) return;
+    if (!confirm('🏁 ¿FINALIZAR EVENTO?\n\nAntes de terminar, puntúa a los participantes.')) return;
 
+    // Obtener participantes aceptados
     try {
-        await SupabaseService.finalizeEvent(eventId);
-        document.getElementById('applicants-modal').remove();
-        app.showToast('Evento finalizado', 'success');
-        app.loadMyEventsView();
+        const applications = await SupabaseService.getEventApplications(eventId);
+        const accepted = applications.filter(app => app.status === 'ACEPTADO');
+
+        if (accepted.length === 0) {
+            // Si no hay nadie, finalizar directo
+            await SupabaseService.finalizeEvent(eventId);
+            document.getElementById('applicants-modal').remove();
+            app.showToast('Evento finalizado', 'success');
+            app.loadMyEventsView();
+        } else {
+            // Cerrar modal actual y abrir el de valoración
+            document.getElementById('applicants-modal').remove();
+            showRatingModal(eventId, accepted);
+        }
     } catch (error) {
         alert('Error: ' + error.message);
+    }
+};
+
+// ===== MODAL DE VALORACIÓN =====
+window.showRatingModal = function (eventId, participants) {
+    const modal = document.createElement('div');
+    modal.className = 'modal active';
+    modal.id = 'rating-modal';
+    modal.style.display = 'flex';
+
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 600px; background: #2a1b3d;">
+            <div class="modal-header">
+                <h2>Valorar participantes</h2>
+            </div>
+            <div class="modal-body">
+                ${participants.map(app => renderRatingCard(app)).join('')}
+            </div>
+            <div class="modal-footer" style="padding: 20px; display: flex; justify-content: space-between;">
+                <button class="btn btn-secondary" onclick="document.getElementById('rating-modal').remove()">Cancelar</button>
+                <button class="btn btn-primary" onclick="submitRatings('${eventId}')" style="background: #bd00ff;">Guardar valoraciones</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+};
+
+window.renderRatingCard = function (application) {
+    const user = application.applicant || {};
+    return `
+        <div class="rating-card" data-user-id="${user.id}" style="background: #3b2a55; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                <img src="${user.avatar || user.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + user.username}" 
+                     style="width: 40px; height: 40px; border-radius: 50%;">
+                <strong>${user.username || 'Usuario'}</strong>
+            </div>
+            
+            <div style="margin-bottom: 10px;">
+                <label style="display: block; font-size: 12px; margin-bottom: 5px;">Calificación</label>
+                <div class="star-rating" data-user-id="${user.id}" style="font-size: 24px; cursor: pointer;">
+                    ${[1, 2, 3, 4, 5].map(star => `
+                        <span onclick="setRating('${user.id}', ${star})" id="star-${user.id}-${star}" style="color: #555;">★</span>
+                    `).join('')}
+                </div>
+                <input type="hidden" id="rating-${user.id}" value="0">
+            </div>
+            
+            <textarea id="comment-${user.id}" placeholder="Comentario sobre su comportamiento..." 
+                style="width: 100%; background: rgba(255,255,255,0.1); border: none; padding: 10px; color: white; border-radius: 5px; min-height: 60px;"></textarea>
+        </div>
+    `;
+};
+
+window.setRating = function (userId, rating) {
+    document.getElementById(`rating-${userId}`).value = rating;
+    for (let i = 1; i <= 5; i++) {
+        const star = document.getElementById(`star-${userId}-${i}`);
+        star.style.color = i <= rating ? '#ffd700' : '#555';
+    }
+};
+
+window.submitRatings = async function (eventId) {
+    const cards = document.querySelectorAll('.rating-card');
+    const ratings = [];
+
+    // Obtener datos del organizador (asumimos que está en localStorage o app global)
+    // Si no, podríamos pasarlo, pero Supabase auth.uid() lo resolverá en el backend si enviamos INSERT.
+    // Necesitamos el ID del usuario actual para 'reviewer_id'
+    const reviewerId = app.user ? app.user.id : null;
+
+    if (!reviewerId) {
+        alert('Error: No se pudo identificar al organizador.');
+        return;
+    }
+
+    cards.forEach(card => {
+        const reviewedId = card.getAttribute('data-user-id');
+        const rating = document.getElementById(`rating-${reviewedId}`).value;
+        const comment = document.getElementById(`comment-${reviewedId}`).value;
+
+        if (rating > 0) {
+            ratings.push({
+                reviewer_id: reviewerId,
+                reviewed_id: reviewedId,
+                event_id: eventId,
+                rating: parseInt(rating),
+                comment: comment
+            });
+        }
+    });
+
+    try {
+        if (ratings.length > 0) {
+            await SupabaseService.submitEventRatings(ratings);
+        }
+
+        await SupabaseService.finalizeEvent(eventId);
+        document.getElementById('rating-modal').remove();
+        app.showToast('¡Evento finalizado y valoraciones guardadas!', 'success');
+        app.loadMyEventsView();
+
+    } catch (error) {
+        console.error(error);
+        alert('Error guardando: ' + error.message);
     }
 };
 
