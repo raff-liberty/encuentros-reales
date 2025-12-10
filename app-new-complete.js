@@ -2103,57 +2103,94 @@ const app = {
     },
 
     async openRateModal(eventId, targetUserId) {
-        // Verificar si existe el modal, si no, crearlo dinámicamente
         let modal = document.getElementById('rate-modal');
+
+        // Si no existe (caso raro), lo creamos
         if (!modal) {
             document.body.insertAdjacentHTML('beforeend', `
                 <div id="rate-modal" class="modal">
-                    <div class="modal-content" style="max-width: 400px; text-align: center;">
-                        <span class="close-modal" onclick="document.getElementById('rate-modal').classList.remove('active')">&times;</span>
-                        <h2 style="margin-bottom: var(--spacing-md);">Valorar Experiencia</h2>
-                        <div id="rate-target-info" style="margin-bottom: var(--spacing-lg);"></div>
-                        
-                        <div class="star-rating" style="font-size: 2rem; margin-bottom: var(--spacing-md);">
-                            <span onclick="app.setRating(1)">★</span>
-                            <span onclick="app.setRating(2)">★</span>
-                            <span onclick="app.setRating(3)">★</span>
-                            <span onclick="app.setRating(4)">★</span>
-                            <span onclick="app.setRating(5)">★</span>
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2>Valorar</h2>
+                            <button class="modal-close" onclick="app.closeRateModal()">✕</button>
                         </div>
-                        <input type="hidden" id="rate-value" value="0">
-                        
-                        <textarea id="rate-comment" placeholder="Comparte tu experiencia... (opcional)" 
-                                  style="width: 100%; height: 100px; padding: 10px; margin-bottom: 10px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-input-bg); color: var(--color-text);"></textarea>
-                        
-                        <button class="btn btn-primary btn-block" onclick="app.submitRating('${eventId}', '${targetUserId}')">Enviar Valoración</button>
+                        <div id="rate-content"></div>
                     </div>
                 </div>
             `);
             modal = document.getElementById('rate-modal');
         }
 
-        const targetUser = await SupabaseService.getUserById(targetUserId);
+        const contentDiv = document.getElementById('rate-content');
+        if (!contentDiv) {
+            console.error('Error: rate-content div not found inside rate-modal');
+            return;
+        }
 
-        const infoDiv = document.getElementById('rate-target-info');
-        infoDiv.innerHTML = `
-            <img src="${targetUser.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${targetUser.username}`}" 
-                 style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 10px;">
-            <p>¿Qué tal fue tu experiencia con <strong>${targetUser.username}</strong>?</p>
+        // Renderizar la estructura del formulario de valoración
+        contentDiv.innerHTML = `
+            <div id="rate-target-info" style="text-align: center; margin-bottom: 20px;">
+                <!-- Se llenará con datos del usuario -->
+                 <div class="loader">Cargando...</div>
+            </div>
+
+            <div class="rating-stars" style="text-align: center; margin-bottom: 20px;">
+                <input type="hidden" id="rate-value" value="0">
+                <div class="star-rating" style="font-size: 40px; color: #ddd;">
+                    <span onclick="app.setRating(1)">★</span>
+                    <span onclick="app.setRating(2)">★</span>
+                    <span onclick="app.setRating(3)">★</span>
+                    <span onclick="app.setRating(4)">★</span>
+                    <span onclick="app.setRating(5)">★</span>
+                </div>
+                <p style="font-size: 0.9em; color: #888; margin-top: 5px;">Toca las estrellas para calificar</p>
+            </div>
+
+            <div class="form-group">
+                <label>Tu opinión (pública)</label>
+                <textarea id="rate-comment" class="form-input" rows="3" placeholder="¿Qué fue lo mejor? ¿Hubo algún problema?"></textarea>
+            </div>
+
+            <button class="btn btn-primary btn-block" onclick="app.submitRating('${eventId}', '${targetUserId}')">Enviar Valoración</button>
         `;
 
-        // Reset stars
-        this.setRating(0);
-        document.getElementById('rate-comment').value = '';
-
+        // Abrir modal
         modal.classList.add('active');
+
+        // Cargar datos del usuario a valorar
+        try {
+            const targetUser = await SupabaseService.getUserById(targetUserId);
+            const infoDiv = document.getElementById('rate-target-info');
+            if (infoDiv) {
+                infoDiv.innerHTML = `
+                    <div style="position: relative; display: inline-block;">
+                        <img src="${targetUser.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${targetUser.username}`}" 
+                            style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 10px; border: 3px solid var(--color-primary);">
+                        <span style="position: absolute; bottom: 10px; right: 0; background: var(--color-background); border-radius: 50%; padding: 2px;">
+                            ${targetUser.role === 'OFERENTE' ? '👑' : '👤'}
+                        </span>
+                    </div>
+                    <h3 style="margin: 0;">${targetUser.username}</h3>
+                    <p style="color: var(--color-text-secondary); font-size: 0.9em;">
+                        ${targetUser.role === 'OFERENTE' ? 'Organizadora del evento' : 'Participante'}
+                    </p>
+                `;
+            }
+        } catch (error) {
+            console.error('Error cargando usuario a valorar:', error);
+            document.getElementById('rate-target-info').innerHTML = '<p class="error">Error cargando perfil</p>';
+        }
     },
 
     setRating(value) {
-        document.getElementById('rate-value').value = value;
+        const input = document.getElementById('rate-value');
+        if (input) input.value = value;
+
         const stars = document.querySelectorAll('.star-rating span');
         stars.forEach((star, index) => {
-            star.style.color = index < value ? 'gold' : 'gray';
-            star.style.cursor = 'pointer';
+            star.style.color = index < value ? 'gold' : '#ddd';
+            star.style.transform = index < value ? 'scale(1.1)' : 'scale(1)';
+            star.style.transition = 'all 0.2s ease';
         });
     },
 
