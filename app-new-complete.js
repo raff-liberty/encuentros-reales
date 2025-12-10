@@ -204,6 +204,11 @@ const app = {
         document.getElementById('app-container').classList.remove('hidden');
         this.updateHeader();
 
+        // Cargar postulaciones PRIMERO pero SIN BLOQUEAR la UI (setTimeout 0)
+        if (AppState.currentUser.role === 'BUSCADOR') {
+            setTimeout(() => this.refreshUserApplications(), 0);
+        }
+
 
 
         // Renderizar navegación según rol
