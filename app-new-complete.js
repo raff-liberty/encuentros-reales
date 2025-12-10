@@ -199,10 +199,15 @@ const app = {
         location.reload();
     },
 
-    showApp() {
+    async showApp() {
         document.getElementById('auth-modal').classList.remove('active');
         document.getElementById('app-container').classList.remove('hidden');
         this.updateHeader();
+
+        // Cargar postulaciones PRIMERO para asegurar estado correcto en UI de eventos
+        if (AppState.currentUser.role === 'BUSCADOR') {
+            await this.refreshUserApplications();
+        }
 
         // Renderizar navegación según rol
         this.renderNavigation();
@@ -218,6 +223,9 @@ const app = {
 
         // Forzar actualización del badge de notificaciones
         this.updateNotificationsBadge();
+
+        // Iniciar polling
+        this.initNotificationPolling();
     },
 
     updateHeader() {
