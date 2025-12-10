@@ -609,6 +609,17 @@ const SupabaseService = {
         return data;
     },
 
+    async getReviewsByReviewed(reviewedId) {
+        const { data, error } = await supabaseClient
+            .from('reviews')
+            .select('*')
+            .eq('reviewed_id', reviewedId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        return data;
+    },
+
     async markAllNotificationsAsRead(userId) {
         const { error } = await supabaseClient
             .from('notifications')

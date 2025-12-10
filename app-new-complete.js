@@ -2434,7 +2434,9 @@ const app = {
                 this.showToast('Error: Usuario no encontrado', 'error');
                 return;
             }
-            this._renderProfileModal(user);
+            // Fetch reviews to ensure fresh rating display
+            const reviews = await SupabaseService.getReviewsByReviewed(userId);
+            this._renderProfileModal(user, reviews);
         } catch (error) {
             console.error('Error viewing profile:', error);
             this.showToast('Error cargando perfil del usuario', 'error');
@@ -2451,10 +2453,15 @@ const app = {
         }
     },
 
-    _renderProfileModal(user) {
+    _renderProfileModal(user, reviews = []) {
         const modal = document.getElementById('event-detail-modal');
         const content = document.getElementById('event-detail-content');
+        document.getElementById('event-detail-title').textContent = 'Perfil de Usuario';
+        document.getElementById('event-detail-actions').innerHTML = ''; // Limpiar acciones
 
+        // Calcular valoración media en tiempo real en el frontend (para respuesta inmediata)
+        const ratingSum = reviews.reduce((sum, r) => sum + r.rating, 0);
+        const avgRating = reviews.length > 0 ? (ratingSum / reviews.length).toFixed(1) : (user.rating || 0).toFixed(1);
 
         const verificationBadge = user.verified === 'VERIFICADO'
             ? '<span class="verification-badge">✓ Verificado</span>'
@@ -2483,7 +2490,7 @@ const app = {
                     ${user.searchZones && user.searchZones.length > 0 ? `
                         <div class="card">
                             <h3 style="margin-bottom: var(--spacing-md);">Zonas de Búsqueda</h3>
-                            <div style="display: flex; gap: var(--spacing-sm); flex-wrap: wrap;">
+                            <div style="display: flex; flex-wrap: wrap; gap: var(--spacing-sm);">
                                 ${user.searchZones.map(z => `
                                     <span class="badge badge-info">${this.capitalizeZone(z)}</span>
                                 `).join('')}
@@ -2503,24 +2510,26 @@ const app = {
                             </div>
                         </div>
                     ` : ''}
-                    
-                    ${user.reviews && user.reviews.length > 0 ? `
-                        <div class="card">
-                            <h3 style="margin-bottom: var(--spacing-md);">Valoraciones Recibidas</h3>
-                            ${user.reviews.map(review => `
-                                <div class="review-card">
-                                    <div class="review-header">
-                                        <div class="review-rating">${'⭐'.repeat(review.rating)}</div>
-                                        <div class="review-date">${this.formatDate(review.date)}</div>
+
+                    <!-- LISTA DE RESEÑAS -->
+                    <div class="card">
+                        <h3 style="margin-bottom: var(--spacing-md);">Opiniones (${reviews.length})</h3>
+                        ${reviews.length > 0 ? `
+                            <div style="display: flex; flex-direction: column; gap: var(--spacing-md);">
+                                ${reviews.map(review => `
+                                    <div style="padding-bottom: var(--spacing-md); border-bottom: 1px solid var(--color-border);">
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                            <div style="color: gold; letter-spacing: 2px;">${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)}</div>
+                                            <span style="font-size: 0.8em; color: var(--color-text-secondary);">${new Date(review.created_at).toLocaleDateString()}</span>
+                                        </div>
+                                        ${review.comment ? `<p style="font-size: 0.95em; color: var(--color-text); font-style: italic;">"${review.comment}"</p>` : ''}
                                     </div>
-                                    <p class="review-comment">${review.comment}</p>
-                                    ${review.reviewerUsername ? `
-                                        <p class="review-author">- ${review.reviewerUsername}</p>
-                                    ` : ''}
-                                </div>
-                            `).join('')}
-                        </div>
-                    ` : ''}
+                                `).join('')}
+                            </div>
+                        ` : `
+                            <p style="color: var(--color-text-secondary); font-style: italic;">Aún no tiene valoraciones.</p>
+                        `}
+                    </div>
                 </div>
                 
                 <div class="profile-sidebar">
@@ -2529,18 +2538,18 @@ const app = {
                         <div style="display: flex; flex-direction: column; gap: var(--spacing-md);">
                             <div>
                                 <div style="font-size: var(--font-size-2xl); font-weight: 700; color: var(--color-accent);">
-                                    ⭐ ${(user.rating || 0).toFixed(1)}
+                                    ⭐ ${avgRating}
                                 </div>
                                 <div style="color: var(--color-text-tertiary); font-size: var(--font-size-sm);">
-                                    Valoración
+                                    Valoración Media
                                 </div>
                             </div>
                             <div>
                                 <div style="font-size: var(--font-size-2xl); font-weight: 700; color: var(--color-accent);">
-                                    ${user.reviewsCount || 0}
+                                    ${reviews.length}
                                 </div>
                                 <div style="color: var(--color-text-tertiary); font-size: var(--font-size-sm);">
-                                    Valoraciones
+                                    Total Valoraciones
                                 </div>
                             </div>
                             ${user.age ? `
