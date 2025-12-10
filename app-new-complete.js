@@ -853,7 +853,6 @@ const app = {
 
         // AUTO-CORRECCIÓN: Si el evento ya finalizó pero la postulación sigue en ACEPTADO (por el error de permisos anterior),
         // tratamos la postulación como FINALIZADO visualmente.
-        let status = application.status;
         if (status === 'ACEPTADO' && event.status === 'FINALIZADO') {
             status = 'FINALIZADO';
         }
