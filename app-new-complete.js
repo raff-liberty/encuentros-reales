@@ -659,7 +659,7 @@ const app = {
     },
 
     // ===== VISTA: MIS POSTULACIONES / MIS EVENTOS =====
-    loadApplicationsView() {
+    async loadApplicationsView() {
         const user = AppState.currentUser;
         const container = document.getElementById('applications-list');
 
@@ -669,63 +669,82 @@ const app = {
             return;
         }
 
-        // Si es BUSCADOR, mostrar sus postulaciones
-        const applications = DataService.getApplicationsByUser(user.id);
+        // Si es BUSCADOR, mostrar sus postulaciones desde Supabase
+        try {
+            container.innerHTML = '<div class="loader">Cargando postulaciones...</div>';
 
-        if (applications.length === 0) {
+            const applications = await SupabaseService.getApplicationsByUser(user.id);
+
+            if (applications.length === 0) {
+                container.innerHTML = `
+                    <div class="card text-center" style="padding: var(--spacing-2xl);">
+                        <div style="font-size: 48px; margin-bottom: var(--spacing-md);">📋</div>
+                        <h3>No tienes postulaciones</h3>
+                        <p style="color: var(--color-text-secondary); margin-top: var(--spacing-sm);">
+                            Explora eventos y postúlate para participar
+                        </p>
+                        <button class="btn btn-primary mt-md" onclick="app.showView('explore')">Explorar eventos</button>
+                    </div>
+        `;
+                return;
+            }
+
+            // Agrupar por estado
+            const pending = applications.filter(app => app.status === 'PENDIENTE');
+            const accepted = applications.filter(app => app.status === 'ACEPTADO');
+            const rejected = applications.filter(app => app.status === 'RECHAZADO');
+
             container.innerHTML = `
-                <div class="card text-center" style="padding: var(--spacing-2xl);">
-                    <div style="font-size: 48px; margin-bottom: var(--spacing-md);">📋</div>
-                    <h3>No tienes postulaciones</h3>
-                    <p style="color: var(--color-text-secondary); margin-top: var(--spacing-sm);">
-                        Explora eventos y postúlate para participar
-                    </p>
-                    <button class="btn btn-primary mt-md" onclick="app.showView('explore')">Explorar eventos</button>
-                </div>
-    `;
-            return;
-        }
-
-        // Agrupar por estado
-        const pending = applications.filter(app => app.status === 'PENDIENTE');
-        const accepted = applications.filter(app => app.status === 'ACEPTADO');
-        const rejected = applications.filter(app => app.status === 'RECHAZADO');
-
-        container.innerHTML = `
-            ${accepted.length > 0 ? `
-                <h3 style="margin-bottom: var(--spacing-md); color: var(--color-success);">
-                    ✅ Aceptadas (${accepted.length})
-                </h3>
-                ${accepted.map(app => this.renderApplicationCard(app, 'ACEPTADO')).join('')}
-            ` : ''
-            }
-            
-            ${pending.length > 0 ? `
-                <h3 style="margin-bottom: var(--spacing-md); margin-top: var(--spacing-xl); color: var(--color-warning);">
-                    ⏳ Pendientes (${pending.length})
-                </h3>
-                ${pending.map(app => this.renderApplicationCard(app, 'PENDIENTE')).join('')}
-            ` : ''
-            }
-            
-            ${rejected.length > 0 ? `
-                <h3 style="margin-bottom: var(--spacing-md); margin-top: var(--spacing-xl); color: var(--color-error);">
-                    ❌ Rechazadas (${rejected.length})
-                </h3>
-                ${rejected.map(app => this.renderApplicationCard(app, 'RECHAZADO')).join('')}
-            ` : ''
-            }
+                ${accepted.length > 0 ? `
+                    <h3 style="margin-bottom: var(--spacing-md); color: var(--color-success);">
+                        ✅ Aceptadas (${accepted.length})
+                    </h3>
+                    ${accepted.map(app => this.renderApplicationCard(app, 'ACEPTADO')).join('')}
+                ` : ''
+                }
+                
+                ${pending.length > 0 ? `
+                    <h3 style="margin-bottom: var(--spacing-md); margin-top: var(--spacing-xl); color: var(--color-warning);">
+                        ⏳ Pendientes (${pending.length})
+                    </h3>
+                    ${pending.map(app => this.renderApplicationCard(app, 'PENDIENTE')).join('')}
+                ` : ''
+                }
+                
+                ${rejected.length > 0 ? `
+                    <h3 style="margin-bottom: var(--spacing-md); margin-top: var(--spacing-xl); color: var(--color-error);">
+                        ❌ Rechazadas (${rejected.length})
+                    </h3>
+                    ${rejected.map(app => this.renderApplicationCard(app, 'RECHAZADO')).join('')}
+                ` : ''
+                }
 `;
 
-        // Actualizar contador
-        document.getElementById('applications-count').textContent = applications.length;
+            // Actualizar contador
+            document.getElementById('applications-count').textContent = applications.length;
+        } catch (error) {
+            console.error('Error cargando postulaciones:', error);
+            container.innerHTML = `
+                <div class="card text-center" style="padding: var(--spacing-2xl);">
+                    <div style="font-size: 48px; margin-bottom: var(--spacing-md);">😢</div>
+                    <h3>Error cargando postulaciones</h3>
+                    <p style="color: var(--color-text-secondary); margin-top: var(--spacing-sm);">
+                        ${error.message || 'Error desconocido'}
+                    </p>
+                </div>
+            `;
+        }
     },
 
     renderApplicationCard(application, status) {
-        const event = DataService.getEventById(application.eventId);
-        if (!event) return '';
+        // En Supabase, el evento viene como application.event gracias al JOIN
+        const event = application.event;
+        if (!event) {
+            console.error('Event not found for application:', application);
+            return '';
+        }
 
-        const organizer = DataService.getUserById(event.organizerId);
+        // El organizador necesitaría otro JOIN, por ahora solo mostramos info básica
         const statusColors = {
             'ACEPTADO': 'var(--color-success)',
             'PENDIENTE': 'var(--color-warning)',
@@ -739,9 +758,6 @@ const app = {
                         <h3>${event.title}</h3>
                         <p style="color: var(--color-text-secondary); font-size: var(--font-size-sm);">
                             ${event.description}
-                        </p>
-                        <p style="color: var(--color-text-tertiary); font-size: var(--font-size-sm); margin-top: 4px;">
-                            Organizadora: ${organizer.username}
                         </p>
                     </div>
                     <span class="badge badge-${status === 'ACEPTADO' ? 'success' : status === 'PENDIENTE' ? 'warning' : 'error'}">
@@ -770,11 +786,6 @@ const app = {
                         <p style="margin-top: var(--spacing-sm); font-size: var(--font-size-sm);">
                             📍 <strong>Ubicación exacta:</strong> ${event.location}
                         </p>
-                        ${organizer.email ? `
-                            <p style="font-size: var(--font-size-sm);">
-                                📧 <strong>Email:</strong> ${organizer.email}
-                            </p>
-                        ` : ''}
                     </div>
                 ` : status === 'PENDIENTE' ? `
                     <div style="background: rgba(255, 215, 0, 0.1); padding: var(--spacing-md); border-radius: var(--border-radius-md); margin-top: var(--spacing-md);">
