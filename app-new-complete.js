@@ -318,14 +318,29 @@ const app = {
         if (!AppState.currentUser) return;
         try {
             const apps = await SupabaseService.getApplicationsByUser(AppState.currentUser.id);
-            AppState.myApplications = apps; // Cache en AppState
+
+            // AUTO-CORRECCIÓN DE DATOS (Frontend Patch):
+            // Si el evento finalizó pero la postulación quedó atrapada en ACEPTADO por RLS,
+            // la corregimos en memoria para que toda la UI (contadores, tarjetas, botones) sea consistente.
+            const patchedApps = apps.map(app => {
+                if (app.status === 'ACEPTADO' && app.event && app.event.status === 'FINALIZADO') {
+                    return { ...app, status: 'FINALIZADO' };
+                }
+                return app;
+            });
+
+            AppState.myApplications = patchedApps; // Guardamos los datos corregidos
+
             this.updateNavCounts();
-            // Si estamos en la vista de explorar, re-renderizar para actualizar botones
+
+            // Si estamos en la vista de explorar o postulaciones, refrescar para mostrar cambios
             if (AppState.currentView === 'explore') {
                 this.loadExploreView();
+            } else if (AppState.currentView === 'applications') {
+                this.loadApplicationsView();
             }
-        } catch (e) {
-            console.error('Error refreshing applications:', e);
+        } catch (error) {
+            console.error('Error refreshing applications:', error);
         }
     },
 
