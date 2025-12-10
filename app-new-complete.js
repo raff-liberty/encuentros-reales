@@ -1228,6 +1228,7 @@ const app = {
             const modal = document.createElement('div');
             modal.className = 'modal';
             modal.id = 'user-profile-modal';
+            modal.style.zIndex = '10100'; // Asegurar que quede encima de otros modales
 
             modal.innerHTML = `
                 <div class="modal-content" style="max-width: 600px;">
