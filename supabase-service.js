@@ -476,7 +476,7 @@ const SupabaseService = {
     },
 
     async finalizeEvent(eventId) {
-        // 1. Actualizar estado a FINALIZADO
+        // 1. Actualizar estado del EVENTO a FINALIZADO
         const { data: event, error } = await supabaseClient
             .from('events')
             .update({ status: 'FINALIZADO' })
@@ -486,12 +486,41 @@ const SupabaseService = {
 
         if (error) throw error;
 
-        // 2. Notificar a los PARTICIPANTES ACEPTADOS
+        // 2. Actualizar estado de las POSTULACIONES 'ACEPTADO' a 'FINALIZADO'
+        const { error: appError } = await supabaseClient
+            .from('applications')
+            .update({ status: 'FINALIZADO' })
+            .eq('event_id', eventId)
+            .eq('status', 'ACEPTADO');
+
+        if (appError) console.error('Error actualizando postulaciones a finalizado:', appError);
+
+        // 3. Notificar a los PARTICIPANTES (ahora en estado FINALIZADO)
         try {
-            await this.notifyAcceptedParticipants(eventId, 'EVENT_FINISHED',
-                '🏁 Evento Finalizado',
-                `El evento "${event.title}" ha finalizado. Gracias por participar.`
-            );
+            // Nota: notifyAcceptedParticipants busca por 'ACEPTADO', necesitamos que busque también 'FINALIZADO' 
+            // o mejor, actualizamos la función de notificación para ser más flexible, 
+            // pero para no romper nada, haremos la query manual aquí o ajustaremos notifyAcceptedParticipants.
+            // Dado que acabamos de cambiarlos a FINALIZADO, notifyAcceptedParticipants(..., 'ACEPTADO') ya no los encontrará.
+
+            // Re-implementamos notificación manual para este caso específico
+            const { data: participants } = await supabaseClient
+                .from('applications')
+                .select('user_id')
+                .eq('event_id', eventId)
+                .eq('status', 'FINALIZADO');
+
+            if (participants && participants.length > 0) {
+                const notifications = participants.map(app => ({
+                    user_id: app.user_id,
+                    type: 'EVENT_FINISHED',
+                    title: '🏁 Evento Finalizado',
+                    message: `El evento "${event.title}" ha finalizado. ¡No olvides valorar a la organizadora!`,
+                    related_id: eventId,
+                    is_read: false
+                }));
+                await supabaseClient.from('notifications').insert(notifications);
+            }
+
         } catch (err) {
             console.error('Error notificando finalización:', err);
         }

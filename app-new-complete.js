@@ -747,12 +747,13 @@ const app = {
         // El organizador necesitaría otro JOIN, por ahora solo mostramos info básica
         const statusColors = {
             'ACEPTADO': 'var(--color-success)',
+            'FINALIZADO': 'var(--color-success)', // Mismo color éxito
             'PENDIENTE': 'var(--color-warning)',
             'RECHAZADO': 'var(--color-error)'
         };
 
         return `
-            <div class="card mb-md" style="border-left: 4px solid ${statusColors[status]};">
+            <div class="card mb-md" style="border-left: 4px solid ${statusColors[status] || 'var(--color-text-secondary)'};">
                 <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--spacing-md);">
                     <div>
                         <h3>${event.title}</h3>
@@ -760,7 +761,7 @@ const app = {
                             ${event.description}
                         </p>
                     </div>
-                    <span class="badge badge-${status === 'ACEPTADO' ? 'success' : status === 'PENDIENTE' ? 'warning' : 'error'}">
+                    <span class="badge badge-${(status === 'ACEPTADO' || status === 'FINALIZADO') ? 'success' : status === 'PENDIENTE' ? 'warning' : 'error'}">
                         ${status}
                     </span>
                 </div>
@@ -776,17 +777,19 @@ const app = {
                     </div>
                     <div class="meta-item">
                         <span>📍</span>
-                        ${status === 'ACEPTADO' ? event.location : this.capitalizeZone(event.zone)}
+                        ${(status === 'ACEPTADO' || status === 'FINALIZADO') ? event.location : this.capitalizeZone(event.zone)}
                     </div>
                 </div>
                 
-                ${status === 'ACEPTADO' ? `
+                ${(status === 'ACEPTADO' || status === 'FINALIZADO') ? `
                     <div style="background: rgba(0, 255, 136, 0.1); padding: var(--spacing-md); border-radius: var(--border-radius-md); margin-top: var(--spacing-md);">
-                        <strong style="color: var(--color-success);">🎉 ¡Felicidades! Has sido aceptado/a</strong>
+                        <strong style="color: var(--color-success);">
+                            ${status === 'FINALIZADO' ? '🏁 Evento Finalizado' : '🎉 ¡Felicidades! Has sido aceptado/a'}
+                        </strong>
                         <p style="margin-top: var(--spacing-sm); font-size: var(--font-size-sm);">
                             📍 <strong>Ubicación exacta:</strong> ${event.location}
                         </p>
-                        ${event.status === 'FINALIZADO' ? `
+                        ${status === 'FINALIZADO' ? `
                             <button class="btn btn-primary" style="margin-top: 10px; width: 100%;" 
                                 onclick="app.rateOrganizer('${event.organizer_id}', '${event.id}')">
                                 ⭐ Valorar Organizador
