@@ -2304,54 +2304,43 @@ const app = {
             console.error('Error rechazando:', error);
             this.showToast('Error rechazando candidato', 'error');
         }
-    }, title: '✅ ¡Has sido aceptado!',
-    message: `Has sido aceptado en el evento "${event.title}". Fecha: ${this.formatDate(event.date)} a las ${event.time}. Ubicación: ${event.location}`,
-    relatedId: eventId
-});
-
-this.showToast('Candidato aceptado', 'success');
-this.manageEventApplicants(eventId); // Recargar
-this.loadApplicationsView(); // Actualizar lista
-        } else {
-    this.showToast('Error al aceptar candidato', 'error');
-}
     },
 
-rejectApplicant(eventId, userId) {
-    if (DataService.rejectApplicant(eventId, userId)) {
-        // Crear notificación para el buscador rechazado
-        const event = DataService.getEventById(eventId);
+    rejectApplicant(eventId, userId) {
+        if (DataService.rejectApplicant(eventId, userId)) {
+            // Crear notificación para el buscador rechazado
+            const event = DataService.getEventById(eventId);
+            const user = DataService.getUserById(userId);
+            DataService.createNotification({
+                userId: userId,
+                type: 'APPLICATION_REJECTED',
+                title: '❌ Candidatura no aceptada',
+                message: `Tu candidatura para el evento "${event.title}" no ha sido aceptada. Sigue explorando otros eventos.`,
+                relatedId: eventId
+            });
+
+            this.showToast('Candidato rechazado', 'info');
+            this.manageEventApplicants(eventId); // Recargar
+            this.loadApplicationsView(); // Actualizar lista
+        } else {
+            this.showToast('Error al rechazar candidato', 'error');
+        }
+    },
+
+    viewApplicantProfile(userId) {
         const user = DataService.getUserById(userId);
-        DataService.createNotification({
-            userId: userId,
-            type: 'APPLICATION_REJECTED',
-            title: '❌ Candidatura no aceptada',
-            message: `Tu candidatura para el evento "${event.title}" no ha sido aceptada. Sigue explorando otros eventos.`,
-            relatedId: eventId
-        });
+        if (!user) return;
 
-        this.showToast('Candidato rechazado', 'info');
-        this.manageEventApplicants(eventId); // Recargar
-        this.loadApplicationsView(); // Actualizar lista
-    } else {
-        this.showToast('Error al rechazar candidato', 'error');
-    }
-},
+        const modal = document.getElementById('event-detail-modal');
+        const content = document.getElementById('event-detail-content');
 
-viewApplicantProfile(userId) {
-    const user = DataService.getUserById(userId);
-    if (!user) return;
+        const verificationBadge = user.verified === 'VERIFICADO'
+            ? '<span class="verification-badge">✓ Verificado</span>'
+            : user.verified === 'PENDIENTE'
+                ? '<span class="badge badge-warning">⏳ Verificación pendiente</span>'
+                : '<span class="badge" style="background: var(--color-error);">❌ No verificado</span>';
 
-    const modal = document.getElementById('event-detail-modal');
-    const content = document.getElementById('event-detail-content');
-
-    const verificationBadge = user.verified === 'VERIFICADO'
-        ? '<span class="verification-badge">✓ Verificado</span>'
-        : user.verified === 'PENDIENTE'
-            ? '<span class="badge badge-warning">⏳ Verificación pendiente</span>'
-            : '<span class="badge" style="background: var(--color-error);">❌ No verificado</span>';
-
-    content.innerHTML = `
+        content.innerHTML = `
             <div class="profile-grid">
                 <div class="profile-main">
                     <div class="card profile-header">
@@ -2448,77 +2437,77 @@ viewApplicantProfile(userId) {
             </div>
         `;
 
-    modal.classList.add('active');
-},
+        modal.classList.add('active');
+    },
 
-deleteUser(userId) {
-    if (!confirm('¿Seguro que quieres eliminar este usuario?')) return;
-    DataService.deleteUser(userId);
-    this.switchAdminTab('users');
-    this.showToast('Usuario eliminado', 'success');
-},
+    deleteUser(userId) {
+        if (!confirm('¿Seguro que quieres eliminar este usuario?')) return;
+        DataService.deleteUser(userId);
+        this.switchAdminTab('users');
+        this.showToast('Usuario eliminado', 'success');
+    },
 
-deleteEvent(eventId) {
-    if (!confirm('¿Seguro que quieres eliminar este evento?')) return;
-    DataService.deleteEvent(eventId);
-    this.switchAdminTab('events');
-    this.showToast('Evento eliminado', 'success');
-},
+    deleteEvent(eventId) {
+        if (!confirm('¿Seguro que quieres eliminar este evento?')) return;
+        DataService.deleteEvent(eventId);
+        this.switchAdminTab('events');
+        this.showToast('Evento eliminado', 'success');
+    },
 
-// ===== CREAR EVENTOS =====
-showCreateEvent() {
-    const modal = document.getElementById('create-event-modal');
-    modal.classList.add('active');
-},
+    // ===== CREAR EVENTOS =====
+    showCreateEvent() {
+        const modal = document.getElementById('create-event-modal');
+        modal.classList.add('active');
+    },
 
-closeCreateEvent() {
-    const modal = document.getElementById('create-event-modal');
-    modal.classList.remove('active');
-},
+    closeCreateEvent() {
+        const modal = document.getElementById('create-event-modal');
+        modal.classList.remove('active');
+    },
 
     async handleCreateEvent(event) {
-    event.preventDefault();
+        event.preventDefault();
 
-    const title = document.getElementById('event-title').value;
-    const date = document.getElementById('event-date').value;
-    const time = document.getElementById('event-time').value;
-    const location = document.getElementById('event-location').value;
+        const title = document.getElementById('event-title').value;
+        const date = document.getElementById('event-date').value;
+        const time = document.getElementById('event-time').value;
+        const location = document.getElementById('event-location').value;
 
-    let type = 'TRADICIONAL'; // Valor por defecto
-    const typeInput = document.querySelector('input[name="gangbang-level"]:checked');
-    if (typeInput) {
-        type = typeInput.value;
+        let type = 'TRADICIONAL'; // Valor por defecto
+        const typeInput = document.querySelector('input[name="gangbang-level"]:checked');
+        if (typeInput) {
+            type = typeInput.value;
+        }
+
+        const capacity = document.getElementById('event-capacity').value;
+        const zone = document.getElementById('event-zone').value;
+        const description = document.getElementById('event-description').value;
+        const rules = document.getElementById('event-rules').value;
+
+        try {
+            this.showToast('Creando evento...', 'info');
+
+            await SupabaseService.createEvent({
+                title,
+                date,
+                time,
+                location,
+                gangbang_level: type, // Mapeo al nombre de col en Supabase
+                capacity: parseInt(capacity),
+                zone,
+                description,
+                rules
+            }, AppState.currentUser.id);
+
+            this.showToast('¡Evento creado exitosamente!', 'success');
+            this.closeCreateEvent();
+            // Ir a mis eventos
+            this.showView('applications'); // Recargará la vista automáticamente
+        } catch (error) {
+            console.error('Error creando evento:', error);
+            this.showToast('Error al crear el evento', 'error');
+        }
     }
-
-    const capacity = document.getElementById('event-capacity').value;
-    const zone = document.getElementById('event-zone').value;
-    const description = document.getElementById('event-description').value;
-    const rules = document.getElementById('event-rules').value;
-
-    try {
-        this.showToast('Creando evento...', 'info');
-
-        await SupabaseService.createEvent({
-            title,
-            date,
-            time,
-            location,
-            gangbang_level: type, // Mapeo al nombre de col en Supabase
-            capacity: parseInt(capacity),
-            zone,
-            description,
-            rules
-        }, AppState.currentUser.id);
-
-        this.showToast('¡Evento creado exitosamente!', 'success');
-        this.closeCreateEvent();
-        // Ir a mis eventos
-        this.showView('applications'); // Recargará la vista automáticamente
-    } catch (error) {
-        console.error('Error creando evento:', error);
-        this.showToast('Error al crear el evento', 'error');
-    }
-}
 };
 
 // Inicializar cuando el DOM esté listo
