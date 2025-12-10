@@ -204,14 +204,9 @@ const app = {
         document.getElementById('app-container').classList.remove('hidden');
         this.updateHeader();
 
-        // Cargar postulaciones PRIMERO para asegurar estado correcto en UI de eventos
+        // Cargar postulaciones PRIMERO pero SIN BLOQUEAR la UI
         if (AppState.currentUser.role === 'BUSCADOR') {
-            try {
-                await this.refreshUserApplications();
-            } catch (error) {
-                console.error('Error pre-fetching applications:', error);
-                // No bloqueamos la carga de la app si esto falla
-            }
+            this.refreshUserApplications().catch(err => console.error('Error bg fetch:', err));
         }
 
         // Renderizar navegación según rol
