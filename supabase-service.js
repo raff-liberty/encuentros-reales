@@ -330,7 +330,7 @@ const SupabaseService = {
         event:events(*)
       `)
             .eq('user_id', userId)
-            .order('applied_at', { ascending: false });
+            .order('created_at', { ascending: false });
 
         if (error) throw error;
         return data;
