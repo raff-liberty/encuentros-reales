@@ -450,33 +450,79 @@ const SupabaseService = {
         return data;
     },
 
-    async rejectApplicant(eventId, userId) {
-        const { data, error } = await supabaseClient
-            .from('applications')
-            .update({ status: 'RECHAZADO' })
-            .match({ event_id: eventId, user_id: userId })
+    // ===== GESTIÓN DE ETAPAS DEL EVENTO =====
+    async closeEventSelection(eventId) {
+        // 1. Actualizar estado a CERRADO
+        const { data: event, error } = await supabaseClient
+            .from('events')
+            .update({ status: 'CERRADO' })
+            .eq('id', eventId)
             .select()
             .single();
 
         if (error) throw error;
 
-        const { data: event } = await supabaseClient
-            .from('events')
-            .select('title')
-            .eq('id', eventId)
-            .single();
-
-        if (event) {
-            await this.createNotification({
-                user_id: userId,
-                type: 'APPLICATION_REJECTED',
-                title: '❌ Candidatura no aceptada',
-                message: `Tu candidatura para "${event.title}" no ha sido aceptada`,
-                related_id: eventId
-            });
+        // 2. Notificar a los PARTICIPANTES ACEPTADOS
+        try {
+            await this.notifyAcceptedParticipants(eventId, 'EVENT_SELECTION_CLOSED',
+                '🔒 Selección Cerrada',
+                `La selección para "${event.title}" ha finalizado. ¡Estás dentro! Prepárate para el evento.`
+            );
+        } catch (err) {
+            console.error('Error notificando cierre:', err);
         }
 
-        return data;
+        return event;
+    },
+
+    async finalizeEvent(eventId) {
+        // 1. Actualizar estado a FINALIZADO
+        const { data: event, error } = await supabaseClient
+            .from('events')
+            .update({ status: 'FINALIZADO' })
+            .eq('id', eventId)
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        // 2. Notificar a los PARTICIPANTES ACEPTADOS
+        try {
+            await this.notifyAcceptedParticipants(eventId, 'EVENT_FINISHED',
+                '🏁 Evento Finalizado',
+                `El evento "${event.title}" ha finalizado. Gracias por participar.`
+            );
+        } catch (err) {
+            console.error('Error notificando finalización:', err);
+        }
+
+        return event;
+    },
+
+    async notifyAcceptedParticipants(eventId, type, title, message) {
+        // Obtener IDs de usuarios aceptados
+        const { data: applications } = await supabaseClient
+            .from('applications')
+            .select('user_id')
+            .eq('event_id', eventId)
+            .eq('status', 'ACEPTADO');
+
+        if (!applications || applications.length === 0) return;
+
+        const notifications = applications.map(app => ({
+            user_id: app.user_id,
+            type: type,
+            title: title,
+            message: message,
+            related_id: eventId,
+            is_read: false
+        }));
+
+        const { error } = await supabaseClient
+            .from('notifications')
+            .insert(notifications);
+
+        if (error) throw error;
     },
 
     // ===== NOTIFICACIONES =====
