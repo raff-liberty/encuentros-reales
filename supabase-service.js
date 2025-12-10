@@ -116,6 +116,23 @@ const SupabaseService = {
         return profile;
     },
 
+    async getUserById(userId) {
+        const { data: profile, error } = await supabaseClient
+            .from('users')
+            .select('*')
+            .eq('id', userId)
+            .single();
+
+        if (error) throw error;
+
+        // Normalizar avatar_url a avatar
+        if (profile) {
+            profile.avatar = profile.avatar_url || profile.avatar;
+        }
+
+        return profile;
+    },
+
     async updateUser(userId, updates) {
         console.log('Intentando actualizar usuario:', userId, updates);
         const { data, error } = await supabaseClient

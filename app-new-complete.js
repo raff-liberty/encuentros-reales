@@ -999,6 +999,9 @@ const app = {
                                 ${user.bio}
                             </p>
                         ` : ''}
+                        <button class="btn btn-secondary btn-small mt-sm" onclick="app.viewUserProfile('${user.id}')">
+                            👤 Ver perfil completo
+                        </button>
                     </div>
                     ${status === 'PENDIENTE' ? `
                         <div style="display: flex; gap: var(--spacing-sm);">
@@ -1046,6 +1049,93 @@ const app = {
         } catch (error) {
             console.error('Error rechazando candidatura:', error);
             this.showToast('Error rechazando candidatura', 'error');
+        }
+    },
+
+    async viewUserProfile(userId) {
+        try {
+            // Obtener datos completos del usuario
+            const user = await SupabaseService.getUserById(userId);
+
+            if (!user) {
+                this.showToast('Usuario no encontrado', 'error');
+                return;
+            }
+
+            // Crear modal con perfil del usuario
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.id = 'user-profile-modal';
+
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 600px;">
+                    <div class="modal-header">
+                        <h2>Perfil de ${user.username}</h2>
+                        <button class="close-modal" onclick="app.closeModal('user-profile-modal')">✕</button>
+                    </div>
+                    <div class="modal-body">
+                        <div style="text-align: center; margin-bottom: var(--spacing-lg);">
+                            <img src="${user.avatar || user.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`}" 
+                                 style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; margin-bottom: var(--spacing-md);">
+                            <h2>${user.username}</h2>
+                            <p style="color: var(--color-text-secondary);">${user.role}</p>
+                        </div>
+                        
+                        ${user.bio ? `
+                            <div class="card mb-md">
+                                <h3 style="margin-bottom: var(--spacing-sm);">Sobre mí</h3>
+                                <p style="color: var(--color-text-secondary);">${user.bio}</p>
+                            </div>
+                        ` : ''}
+                        
+                        <div class="card mb-md">
+                            <h3 style="margin-bottom: var(--spacing-sm);">Información</h3>
+                            <div style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
+                                ${user.age ? `
+                                    <div style="display: flex; justify-content: space-between;">
+                                        <span style="color: var(--color-text-secondary);">Edad:</span>
+                                        <strong>${user.age} años</strong>
+                                    </div>
+                                ` : ''}
+                                <div style="display: flex; justify-content: space-between;">
+                                    <span style="color: var(--color-text-secondary);">Valoración:</span>
+                                    <strong>⭐ ${(user.rating || 0).toFixed(1)}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        ${user.search_zones && user.search_zones.length > 0 ? `
+                            <div class="card mb-md">
+                                <h3 style="margin-bottom: var(--spacing-sm);">Zonas de búsqueda</h3>
+                                <div style="display: flex; gap: var(--spacing-sm); flex-wrap: wrap;">
+                                    ${user.search_zones.map(zone => `
+                                        <span class="badge badge-info">${this.capitalizeZone(zone)}</span>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        ${user.gallery && user.gallery.length > 0 ? `
+                            <div class="card">
+                                <h3 style="margin-bottom: var(--spacing-sm);">Galería</h3>
+                                <div class="gallery-grid">
+                                    ${user.gallery.map(img => `
+                                        <div class="gallery-item" onclick="app.showImageModal('${img}')">
+                                            <img src="${img}" alt="Galería">
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+            setTimeout(() => modal.classList.add('active'), 10);
+        } catch (error) {
+            console.error('Error cargando perfil:', error);
+            this.showToast('Error cargando perfil del usuario', 'error');
         }
     },
 
