@@ -252,13 +252,21 @@ window.submitRatings = async function (eventId) {
     const cards = document.querySelectorAll('.rating-card');
     const ratings = [];
 
-    // Obtener datos del organizador (asumimos que está en localStorage o app global)
-    // Si no, podríamos pasarlo, pero Supabase auth.uid() lo resolverá en el backend si enviamos INSERT.
-    // Necesitamos el ID del usuario actual para 'reviewer_id'
-    const reviewerId = app.user ? app.user.id : null;
+    // INTENTO 1: Obtener de app global
+    let reviewerId = window.app && window.app.user ? window.app.user.id : null;
+
+    // INTENTO 2: Obtener directamente de Supabase (si app.user falló)
+    if (!reviewerId && window.supabaseClient) {
+        try {
+            const { data: { user } } = await window.supabaseClient.auth.getUser();
+            if (user) reviewerId = user.id;
+        } catch (e) {
+            console.error('Error recuperando usuario:', e);
+        }
+    }
 
     if (!reviewerId) {
-        alert('Error: No se pudo identificar al organizador.');
+        alert('Error: No se pudo identificar tu sesión. Por favor, recarga la página.');
         return;
     }
 
