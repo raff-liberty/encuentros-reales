@@ -905,6 +905,158 @@ const app = {
         }
     },
 
+    // ===== GESTIONAR CANDIDATOS DE UN EVENTO =====
+    async manageEventApplicants(eventId) {
+        try {
+            // Obtener aplicaciones del evento
+            const applications = await SupabaseService.getEventApplications(eventId);
+            const event = await SupabaseService.getEventById(eventId);
+
+            if (!event) {
+                this.showToast('Error: Evento no encontrado', 'error');
+                return;
+            }
+
+            // Crear modal
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.id = 'applicants-modal';
+
+            const pendingApps = applications.filter(app => app.status === 'PENDIENTE');
+            const acceptedApps = applications.filter(app => app.status === 'ACEPTADO');
+            const rejectedApps = applications.filter(app => app.status === 'RECHAZADO');
+
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 800px;">
+                    <div class="modal-header">
+                        <h2>Gestionar Candidatos - ${event.title}</h2>
+                        <button class="close-modal" onclick="app.closeModal('applicants-modal')">✕</button>
+                    </div>
+                    <div class="modal-body">
+                        ${applications.length === 0 ? `
+                            <div class="text-center" style="padding: var(--spacing-2xl);">
+                                <div style="font-size: 48px; margin-bottom: var(--spacing-md);">📋</div>
+                                <h3>No hay candidaturas aún</h3>
+                                <p style="color: var(--color-text-secondary);">
+                                    Cuando alguien se postule a tu evento, aparecerá aquí
+                                </p>
+                            </div>
+                        ` : `
+                            ${pendingApps.length > 0 ? `
+                                <h3 style="color: var(--color-warning); margin-bottom: var(--spacing-md);">
+                                    ⏳ Pendientes (${pendingApps.length})
+                                </h3>
+                                ${pendingApps.map(app => this.renderApplicantCard(app, event)).join('')}
+                            ` : ''}
+                            
+                            ${acceptedApps.length > 0 ? `
+                                <h3 style="color: var(--color-success); margin-top: var(--spacing-xl); margin-bottom: var(--spacing-md);">
+                                    ✅ Aceptados (${acceptedApps.length})
+                                </h3>
+                                ${acceptedApps.map(app => this.renderApplicantCard(app, event)).join('')}
+                            ` : ''}
+                            
+                            ${rejectedApps.length > 0 ? `
+                                <h3 style="color: var(--color-error); margin-top: var(--spacing-xl); margin-bottom: var(--spacing-md);">
+                                    ❌ Rechazados (${rejectedApps.length})
+                                </h3>
+                                ${rejectedApps.map(app => this.renderApplicantCard(app, event)).join('')}
+                            ` : ''}
+                        `}
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+            setTimeout(() => modal.classList.add('active'), 10);
+        } catch (error) {
+            console.error('Error cargando candidatos:', error);
+            this.showToast('Error cargando candidatos', 'error');
+        }
+    },
+
+    renderApplicantCard(application, event) {
+        const user = application.applicant || {};
+        const status = application.status;
+
+        return `
+            <div class="card mb-md" style="border-left: 4px solid ${status === 'ACEPTADO' ? 'var(--color-success)' :
+                status === 'RECHAZADO' ? 'var(--color-error)' :
+                    'var(--color-warning)'
+            };">
+                <div style="display: flex; justify-content: space-between; align-items: start;">
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; gap: var(--spacing-md); margin-bottom: var(--spacing-sm);">
+                            <img src="${user.avatar || user.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`}" 
+                                 style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">
+                            <div>
+                                <strong>${user.username || 'Usuario'}</strong>
+                                ${user.age ? `<div style="color: var(--color-text-secondary); font-size: var(--font-size-sm);">${user.age} años</div>` : ''}
+                            </div>
+                        </div>
+                        ${user.bio ? `
+                            <p style="color: var(--color-text-secondary); font-size: var(--font-size-sm); margin-top: var(--spacing-sm);">
+                                ${user.bio}
+                            </p>
+                        ` : ''}
+                    </div>
+                    ${status === 'PENDIENTE' ? `
+                        <div style="display: flex; gap: var(--spacing-sm);">
+                            <button class="btn btn-success btn-small" onclick="app.acceptApplicant('${application.id}', '${event.id}')">
+                                ✅ Aceptar
+                            </button>
+                            <button class="btn btn-error btn-small" onclick="app.rejectApplicant('${application.id}', '${event.id}')">
+                                ❌ Rechazar
+                            </button>
+                        </div>
+                    ` : `
+                        <span class="badge badge-${status === 'ACEPTADO' ? 'success' : 'error'}">
+                            ${status}
+                        </span>
+                    `}
+                </div>
+            </div>
+        `;
+    },
+
+    async acceptApplicant(applicationId, eventId) {
+        if (!confirm('¿Aceptar esta candidatura?')) return;
+
+        try {
+            await SupabaseService.updateApplicationStatus(applicationId, 'ACEPTADO', eventId);
+            this.showToast('Candidatura aceptada', 'success');
+            // Recargar modal
+            this.closeModal('applicants-modal');
+            this.manageEventApplicants(eventId);
+        } catch (error) {
+            console.error('Error aceptando candidatura:', error);
+            this.showToast('Error aceptando candidatura', 'error');
+        }
+    },
+
+    async rejectApplicant(applicationId, eventId) {
+        if (!confirm('¿Rechazar esta candidatura?')) return;
+
+        try {
+            await SupabaseService.updateApplicationStatus(applicationId, 'RECHAZADO', eventId);
+            this.showToast('Candidatura rechazada', 'success');
+            // Recargar modal
+            this.closeModal('applicants-modal');
+            this.manageEventApplicants(eventId);
+        } catch (error) {
+            console.error('Error rechazando candidatura:', error);
+            this.showToast('Error rechazando candidatura', 'error');
+        }
+    },
+
+    closeModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.remove('active');
+            setTimeout(() => modal.remove(), 300);
+        }
+    },
+
     // ===== VISTA: FAVORITOS =====
     loadFavoritesView() {
         const container = document.getElementById('favorites-list');
