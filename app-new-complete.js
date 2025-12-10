@@ -1326,35 +1326,39 @@ const app = {
         const events = AppState.favorites
             .map(id => DataService.getEventById(id))
             .filter(e => e !== null);
+
+        this.renderEvents(events);
+    },
+
     // ===== VISTA: PERFIL =====
     async loadProfileView() {
-            const user = AppState.currentUser;
-            const container = document.getElementById('profile-container');
+        const user = AppState.currentUser;
+        const container = document.getElementById('profile-container');
 
-            // Fetch reviews to ensure fresh display for the user's own profile
-            let reviews = [];
-            let avgRating = (user.rating || 0).toFixed(1);
-            let reviewsCount = user.reviewsCount || 0;
+        // Fetch reviews to ensure fresh display for the user's own profile
+        let reviews = [];
+        let avgRating = (user.rating || 0).toFixed(1);
+        let reviewsCount = user.reviewsCount || 0;
 
-            try {
-                reviews = await SupabaseService.getReviewsByReviewed(user.id);
-                // Live calculation
-                const ratingSum = reviews.reduce((sum, r) => sum + r.rating, 0);
-                if (reviews.length > 0) {
-                    avgRating = (ratingSum / reviews.length).toFixed(1);
-                }
-                reviewsCount = reviews.length;
-            } catch (error) {
-                console.error('Error fetching own reviews:', error);
+        try {
+            reviews = await SupabaseService.getReviewsByReviewed(user.id);
+            // Live calculation
+            const ratingSum = reviews.reduce((sum, r) => sum + r.rating, 0);
+            if (reviews.length > 0) {
+                avgRating = (ratingSum / reviews.length).toFixed(1);
             }
+            reviewsCount = reviews.length;
+        } catch (error) {
+            console.error('Error fetching own reviews:', error);
+        }
 
-            const verificationBadge = user.verified === 'VERIFICADO'
-                ? '<span class="verification-badge">✓ Verificado</span>'
-                : user.verified === 'PENDIENTE'
-                    ? '<span class="badge badge-warning">⏳ Verificación pendiente</span>'
-                    : '<span class="badge" style="background: var(--color-error);">❌ No verificado</span>';
+        const verificationBadge = user.verified === 'VERIFICADO'
+            ? '<span class="verification-badge">✓ Verificado</span>'
+            : user.verified === 'PENDIENTE'
+                ? '<span class="badge badge-warning">⏳ Verificación pendiente</span>'
+                : '<span class="badge" style="background: var(--color-error);">❌ No verificado</span>';
 
-            container.innerHTML = `
+        container.innerHTML = `
             <div class="profile-grid">
                 <div class="profile-main">
                     <div class="card profile-header">
@@ -1466,16 +1470,16 @@ const app = {
                 </div>
             </div >
     `;
-        },
+    },
 
-        toggleProfileEdit() {
-            const user = AppState.currentUser;
-            // Normalizar avatar por si viene como avatar_url
-            const currentAvatar = user.avatar || user.avatar_url;
-            const container = document.getElementById('profile-container');
-            const zones = ['norte', 'sur', 'este', 'oeste', 'centro'];
+    toggleProfileEdit() {
+        const user = AppState.currentUser;
+        // Normalizar avatar por si viene como avatar_url
+        const currentAvatar = user.avatar || user.avatar_url;
+        const container = document.getElementById('profile-container');
+        const zones = ['norte', 'sur', 'este', 'oeste', 'centro'];
 
-            container.innerHTML = `
+        container.innerHTML = `
             <div class="card" style="max-width: 600px; margin: 0 auto;">
                 <h2 style="margin-bottom: 20px;">✏️ Editar Perfil</h2>
                 <form id="profile-edit-form" onsubmit="app.saveProfile(event)">
@@ -1536,305 +1540,305 @@ const app = {
                 </form>
             </div>
         `;
-        },
+    },
 
     async saveProfile(event) {
-            event.preventDefault();
-            const form = event.target;
-            const user = AppState.currentUser;
-            const submitBtn = form.querySelector('button[type="submit"]');
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Guardando...';
+        event.preventDefault();
+        const form = event.target;
+        const user = AppState.currentUser;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Guardando...';
 
-            try {
-                // 1. Recoger datos básicos
-                const selectedZones = Array.from(form.querySelectorAll('input[name="searchZones"]:checked'))
-                    .map(cb => cb.value);
+        try {
+            // 1. Recoger datos básicos
+            const selectedZones = Array.from(form.querySelectorAll('input[name="searchZones"]:checked'))
+                .map(cb => cb.value);
 
-                let updates = {
-                    bio: form.bio.value,
-                    age: form.age.value ? parseInt(form.age.value) : null,
-                    search_zones: selectedZones
-                };
+            let updates = {
+                bio: form.bio.value,
+                age: form.age.value ? parseInt(form.age.value) : null,
+                search_zones: selectedZones
+            };
 
-                // 2. Subir avatar si existe
-                const avatarFile = form.avatarFile.files[0];
-                if (avatarFile) {
-                    const path = `${user.id}/${Date.now()}_avatar`;
-                    const avatarUrl = await SupabaseService.uploadFile('avatars', path, avatarFile);
-                    updates.avatar_url = avatarUrl;
-                }
-
-                // 3. Subir galería si existe
-                const galleryFiles = form.galleryFiles.files;
-                if (galleryFiles.length > 0) {
-                    let currentGallery = user.gallery || [];
-                    for (let i = 0; i < galleryFiles.length; i++) {
-                        const file = galleryFiles[i];
-                        const path = `${user.id}/${Date.now()}_gallery_${i}`;
-                        const url = await SupabaseService.uploadFile('gallery', path, file);
-                        currentGallery.push(url);
-                    }
-                    updates.gallery = currentGallery;
-                }
-
-                // 4. Actualizar usuario
-                await SupabaseService.updateUser(user.id, updates);
-
-                // 5. Refrescar estado local
-                const updatedProfile = await SupabaseService.getCurrentUser();
-                if (updatedProfile) {
-                    // Mapear avatar_url -> avatar para compatibilidad con resto de app
-                    updatedProfile.avatar = updatedProfile.avatar_url || updatedProfile.avatar;
-                }
-                AppState.currentUser = updatedProfile;
-
-                this.loadProfileView();
-                this.showToast('Perfil actualizado correctamente', 'success');
-
-            } catch (error) {
-                console.error('Error guardando perfil:', error);
-                this.showToast('Error: ' + (error.message || 'No se pudo guardar'), 'error');
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Guardar Cambios';
+            // 2. Subir avatar si existe
+            const avatarFile = form.avatarFile.files[0];
+            if (avatarFile) {
+                const path = `${user.id}/${Date.now()}_avatar`;
+                const avatarUrl = await SupabaseService.uploadFile('avatars', path, avatarFile);
+                updates.avatar_url = avatarUrl;
             }
-        },
+
+            // 3. Subir galería si existe
+            const galleryFiles = form.galleryFiles.files;
+            if (galleryFiles.length > 0) {
+                let currentGallery = user.gallery || [];
+                for (let i = 0; i < galleryFiles.length; i++) {
+                    const file = galleryFiles[i];
+                    const path = `${user.id}/${Date.now()}_gallery_${i}`;
+                    const url = await SupabaseService.uploadFile('gallery', path, file);
+                    currentGallery.push(url);
+                }
+                updates.gallery = currentGallery;
+            }
+
+            // 4. Actualizar usuario
+            await SupabaseService.updateUser(user.id, updates);
+
+            // 5. Refrescar estado local
+            const updatedProfile = await SupabaseService.getCurrentUser();
+            if (updatedProfile) {
+                // Mapear avatar_url -> avatar para compatibilidad con resto de app
+                updatedProfile.avatar = updatedProfile.avatar_url || updatedProfile.avatar;
+            }
+            AppState.currentUser = updatedProfile;
+
+            this.loadProfileView();
+            this.showToast('Perfil actualizado correctamente', 'success');
+
+        } catch (error) {
+            console.error('Error guardando perfil:', error);
+            this.showToast('Error: ' + (error.message || 'No se pudo guardar'), 'error');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Guardar Cambios';
+        }
+    },
 
     async deleteGalleryImage(imageUrl) {
-            if (!confirm('¿Borrar esta foto?')) return;
+        if (!confirm('¿Borrar esta foto?')) return;
 
-            const user = AppState.currentUser;
-            try {
-                // 1. Filtrar array local
-                const newGallery = (user.gallery || []).filter(img => img !== imageUrl);
+        const user = AppState.currentUser;
+        try {
+            // 1. Filtrar array local
+            const newGallery = (user.gallery || []).filter(img => img !== imageUrl);
 
-                // 2. Actualizar DB
-                await SupabaseService.updateUser(user.id, { gallery: newGallery });
+            // 2. Actualizar DB
+            await SupabaseService.updateUser(user.id, { gallery: newGallery });
 
-                // 3. Refrescar UI
-                user.gallery = newGallery;
-                this.toggleProfileEdit();
-
-                // Intento de borrado físico en background
-                try {
-                    await SupabaseService.deleteFile('gallery', imageUrl);
-                } catch (e) { console.warn('Borrado físico falló, pero DB actualizada', e); }
-
-            } catch (error) {
-                console.error(error);
-                this.showToast('Error borrando imagen', 'error');
-            }
-        },
-
-        // ===== UTILIDADES =====
-        formatDate(date) {
-            if (typeof date === 'string') {
-                const d = new Date(date);
-                return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
-            }
-            return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
-        },
-
-        capitalizeZone(zone) {
-            const zones = {
-                'norte': 'Zona Norte',
-                'sur': 'Zona Sur',
-                'este': 'Zona Este',
-                'oeste': 'Zona Oeste',
-                'centro': 'Centro'
-            };
-            return zones[zone] || zone;
-        },
-
-        showImageModal(imageUrl) {
-            const modal = document.getElementById('image-modal');
-            const img = document.getElementById('image-modal-img');
-            img.src = imageUrl;
-            modal.classList.add('active');
-        },
-
-        closeImageModal() {
-            const modal = document.getElementById('image-modal');
-            modal.classList.remove('active');
-        },
-
-        showToast(message, type = 'info') {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            toast.className = `toast ${type} `;
-            toast.textContent = message;
-
-            container.appendChild(toast);
-
-            setTimeout(() => {
-                toast.remove();
-            }, 3000);
-        },
-        // ===== GESTIÓN DE EVENTOS Y PERFIL =====
-
-        showCreateEvent() {
-            const modal = document.getElementById('create-event-modal');
-            modal.classList.add('active');
-        },
-
-        closeCreateEventModal() {
-            const modal = document.getElementById('create-event-modal');
-            modal.classList.remove('active');
-        },
-
-        handleCreateEvent(event) {
-            event.preventDefault();
-
-            // Validar permisos
-            if (AppState.currentUser.role !== 'OFERENTE' && AppState.currentUser.role !== 'ADMIN') {
-                this.showToast('Solo los postulantes y administradores pueden crear eventos', 'error');
-                return;
-            }
-
-            const form = event.target;
-            const formData = new FormData(form);
-
-            const eventData = {
-                title: formData.get('title'),
-                description: formData.get('description'),
-                gangbangLevel: formData.get('gangbangLevel'),
-                date: formData.get('date'),
-                time: formData.get('time'),
-                zone: formData.get('zone'),
-                capacity: parseInt(formData.get('capacity')),
-                location: formData.get('location'),
-                rules: formData.get('rules')
-            };
-
-            try {
-                const newEvent = DataService.createEvent(eventData, AppState.currentUser.id);
-                this.showToast('Evento creado exitosamente', 'success');
-                this.closeCreateEventModal();
-                form.reset();
-                this.loadExploreView(); // Recargar vista
-            } catch (error) {
-                console.error(error);
-                this.showToast('Error al crear el evento', 'error');
-            }
-        },
-
-        toggleProfileEdit() {
-            const modal = document.getElementById('edit-profile-modal');
-            const user = AppState.currentUser;
-
-            if (!modal.classList.contains('active')) {
-                // Cargar datos actuales
-                const form = document.getElementById('edit-profile-form');
-                form.bio.value = user.bio || '';
-
-                // Cargar zonas
-                const checkBoxes = form.querySelectorAll('input[name="zones"]');
-                checkBoxes.forEach(cb => {
-                    cb.checked = user.searchZones && user.searchZones.includes(cb.value);
-                });
-
-                // Preview avatar
-                document.getElementById('edit-avatar-preview').src = user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`;
-
-                // Preview galería
-                const galleryContainer = document.getElementById('gallery-preview');
-                galleryContainer.innerHTML = '';
-                if (user.gallery) {
-                    user.gallery.forEach(img => {
-                        const imgEl = document.createElement('img');
-                        imgEl.src = img;
-                        imgEl.style.width = '50px';
-                        imgEl.style.height = '50px';
-                        imgEl.style.objectFit = 'cover';
-                        galleryContainer.appendChild(imgEl);
-                    });
-                }
-            }
-
-            modal.classList.toggle('active');
-        },
-
-        handleImageUpload(type, input) {
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
-
-                reader.onload = function (e) {
-                    const result = e.target.result;
-
-                    if (type === 'avatar') {
-                        document.getElementById('edit-avatar-preview').src = result;
-                        AppState.tempAvatar = result;
-                    } else if (type === 'gallery') {
-                        if (!AppState.tempGallery) AppState.tempGallery = [];
-                        if (AppState.tempGallery.length >= 4) {
-                            app.showToast('Máximo 4 fotos en la galería', 'warning');
-                            return;
-                        }
-                        AppState.tempGallery.push(result);
-
-                        // Actualizar preview
-                        const galleryContainer = document.getElementById('gallery-preview');
-                        const imgEl = document.createElement('img');
-                        imgEl.src = result;
-                        imgEl.style.width = '50px';
-                        imgEl.style.height = '50px';
-                        imgEl.style.objectFit = 'cover';
-                        galleryContainer.appendChild(imgEl);
-                    }
-                };
-
-                reader.readAsDataURL(input.files[0]);
-            }
-        },
-
-        handleProfileEdit(event) {
-            event.preventDefault();
-            const form = event.target;
-            const user = AppState.currentUser;
-
-            // Actualizar Bio
-            user.bio = form.bio.value;
-
-            // Actualizar Zonas
-            const checkBoxes = form.querySelectorAll('input[name="zones"]:checked');
-            user.searchZones = Array.from(checkBoxes).map(cb => cb.value);
-
-            // Actualizar Avatar si hay cambio
-            if (AppState.tempAvatar) {
-                user.avatar = AppState.tempAvatar;
-                delete AppState.tempAvatar;
-            }
-
-            // Actualizar Galería si hay cambios
-            if (AppState.tempGallery) {
-                if (!user.gallery) user.gallery = [];
-                user.gallery = [...user.gallery, ...AppState.tempGallery].slice(0, 4); // Limitar a 4
-                delete AppState.tempGallery;
-            }
-
-            // Guardar cambios
-            const dbUser = DataService.getUserById(user.id);
-            if (dbUser) {
-                Object.assign(dbUser, user);
-            }
-
-            // Persistir sesión
-            localStorage.setItem('currentUser', JSON.stringify(user));
-
-            this.showToast('Perfil actualizado correctamente', 'success');
+            // 3. Refrescar UI
+            user.gallery = newGallery;
             this.toggleProfileEdit();
-            this.loadProfileView();
-        },
 
-        // ===== ADMIN PANEL =====
+            // Intento de borrado físico en background
+            try {
+                await SupabaseService.deleteFile('gallery', imageUrl);
+            } catch (e) { console.warn('Borrado físico falló, pero DB actualizada', e); }
 
-        loadAdminView() {
-            const container = document.getElementById('view-admin');
-            const users = DataService.getAllUsers();
-            const events = DataService.getAllEvents();
-            const auditLog = DB.auditLog || [];
+        } catch (error) {
+            console.error(error);
+            this.showToast('Error borrando imagen', 'error');
+        }
+    },
 
-            container.innerHTML = `
+    // ===== UTILIDADES =====
+    formatDate(date) {
+        if (typeof date === 'string') {
+            const d = new Date(date);
+            return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
+        }
+        return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
+    },
+
+    capitalizeZone(zone) {
+        const zones = {
+            'norte': 'Zona Norte',
+            'sur': 'Zona Sur',
+            'este': 'Zona Este',
+            'oeste': 'Zona Oeste',
+            'centro': 'Centro'
+        };
+        return zones[zone] || zone;
+    },
+
+    showImageModal(imageUrl) {
+        const modal = document.getElementById('image-modal');
+        const img = document.getElementById('image-modal-img');
+        img.src = imageUrl;
+        modal.classList.add('active');
+    },
+
+    closeImageModal() {
+        const modal = document.getElementById('image-modal');
+        modal.classList.remove('active');
+    },
+
+    showToast(message, type = 'info') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type} `;
+        toast.textContent = message;
+
+        container.appendChild(toast);
+
+        setTimeout(() => {
+            toast.remove();
+        }, 3000);
+    },
+    // ===== GESTIÓN DE EVENTOS Y PERFIL =====
+
+    showCreateEvent() {
+        const modal = document.getElementById('create-event-modal');
+        modal.classList.add('active');
+    },
+
+    closeCreateEventModal() {
+        const modal = document.getElementById('create-event-modal');
+        modal.classList.remove('active');
+    },
+
+    handleCreateEvent(event) {
+        event.preventDefault();
+
+        // Validar permisos
+        if (AppState.currentUser.role !== 'OFERENTE' && AppState.currentUser.role !== 'ADMIN') {
+            this.showToast('Solo los postulantes y administradores pueden crear eventos', 'error');
+            return;
+        }
+
+        const form = event.target;
+        const formData = new FormData(form);
+
+        const eventData = {
+            title: formData.get('title'),
+            description: formData.get('description'),
+            gangbangLevel: formData.get('gangbangLevel'),
+            date: formData.get('date'),
+            time: formData.get('time'),
+            zone: formData.get('zone'),
+            capacity: parseInt(formData.get('capacity')),
+            location: formData.get('location'),
+            rules: formData.get('rules')
+        };
+
+        try {
+            const newEvent = DataService.createEvent(eventData, AppState.currentUser.id);
+            this.showToast('Evento creado exitosamente', 'success');
+            this.closeCreateEventModal();
+            form.reset();
+            this.loadExploreView(); // Recargar vista
+        } catch (error) {
+            console.error(error);
+            this.showToast('Error al crear el evento', 'error');
+        }
+    },
+
+    toggleProfileEdit() {
+        const modal = document.getElementById('edit-profile-modal');
+        const user = AppState.currentUser;
+
+        if (!modal.classList.contains('active')) {
+            // Cargar datos actuales
+            const form = document.getElementById('edit-profile-form');
+            form.bio.value = user.bio || '';
+
+            // Cargar zonas
+            const checkBoxes = form.querySelectorAll('input[name="zones"]');
+            checkBoxes.forEach(cb => {
+                cb.checked = user.searchZones && user.searchZones.includes(cb.value);
+            });
+
+            // Preview avatar
+            document.getElementById('edit-avatar-preview').src = user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`;
+
+            // Preview galería
+            const galleryContainer = document.getElementById('gallery-preview');
+            galleryContainer.innerHTML = '';
+            if (user.gallery) {
+                user.gallery.forEach(img => {
+                    const imgEl = document.createElement('img');
+                    imgEl.src = img;
+                    imgEl.style.width = '50px';
+                    imgEl.style.height = '50px';
+                    imgEl.style.objectFit = 'cover';
+                    galleryContainer.appendChild(imgEl);
+                });
+            }
+        }
+
+        modal.classList.toggle('active');
+    },
+
+    handleImageUpload(type, input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+
+            reader.onload = function (e) {
+                const result = e.target.result;
+
+                if (type === 'avatar') {
+                    document.getElementById('edit-avatar-preview').src = result;
+                    AppState.tempAvatar = result;
+                } else if (type === 'gallery') {
+                    if (!AppState.tempGallery) AppState.tempGallery = [];
+                    if (AppState.tempGallery.length >= 4) {
+                        app.showToast('Máximo 4 fotos en la galería', 'warning');
+                        return;
+                    }
+                    AppState.tempGallery.push(result);
+
+                    // Actualizar preview
+                    const galleryContainer = document.getElementById('gallery-preview');
+                    const imgEl = document.createElement('img');
+                    imgEl.src = result;
+                    imgEl.style.width = '50px';
+                    imgEl.style.height = '50px';
+                    imgEl.style.objectFit = 'cover';
+                    galleryContainer.appendChild(imgEl);
+                }
+            };
+
+            reader.readAsDataURL(input.files[0]);
+        }
+    },
+
+    handleProfileEdit(event) {
+        event.preventDefault();
+        const form = event.target;
+        const user = AppState.currentUser;
+
+        // Actualizar Bio
+        user.bio = form.bio.value;
+
+        // Actualizar Zonas
+        const checkBoxes = form.querySelectorAll('input[name="zones"]:checked');
+        user.searchZones = Array.from(checkBoxes).map(cb => cb.value);
+
+        // Actualizar Avatar si hay cambio
+        if (AppState.tempAvatar) {
+            user.avatar = AppState.tempAvatar;
+            delete AppState.tempAvatar;
+        }
+
+        // Actualizar Galería si hay cambios
+        if (AppState.tempGallery) {
+            if (!user.gallery) user.gallery = [];
+            user.gallery = [...user.gallery, ...AppState.tempGallery].slice(0, 4); // Limitar a 4
+            delete AppState.tempGallery;
+        }
+
+        // Guardar cambios
+        const dbUser = DataService.getUserById(user.id);
+        if (dbUser) {
+            Object.assign(dbUser, user);
+        }
+
+        // Persistir sesión
+        localStorage.setItem('currentUser', JSON.stringify(user));
+
+        this.showToast('Perfil actualizado correctamente', 'success');
+        this.toggleProfileEdit();
+        this.loadProfileView();
+    },
+
+    // ===== ADMIN PANEL =====
+
+    loadAdminView() {
+        const container = document.getElementById('view-admin');
+        const users = DataService.getAllUsers();
+        const events = DataService.getAllEvents();
+        const auditLog = DB.auditLog || [];
+
+        container.innerHTML = `
             <div class="admin-dashboard fade-in">
                 <div class="header-section">
                     <h1>🛡️ Panel de Control</h1>
@@ -1863,25 +1867,25 @@ const app = {
                 </div>
             </div>
         `;
-        },
+    },
 
-        switchAdminTab(tabName) {
-            const buttons = document.querySelectorAll('.tab-btn');
-            buttons.forEach(b => b.classList.remove('active'));
-            if (event) event.target.classList.add('active');
+    switchAdminTab(tabName) {
+        const buttons = document.querySelectorAll('.tab-btn');
+        buttons.forEach(b => b.classList.remove('active'));
+        if (event) event.target.classList.add('active');
 
-            const content = document.getElementById('admin-tab-content');
-            if (tabName === 'users') {
-                content.innerHTML = this.renderAdminUsersTable(DataService.getAllUsers());
-            } else if (tabName === 'events') {
-                content.innerHTML = this.renderAdminEventsTable(DataService.getAllEvents());
-            } else if (tabName === 'audit') {
-                content.innerHTML = this.renderAdminAuditTable(DB.auditLog || []);
-            }
-        },
+        const content = document.getElementById('admin-tab-content');
+        if (tabName === 'users') {
+            content.innerHTML = this.renderAdminUsersTable(DataService.getAllUsers());
+        } else if (tabName === 'events') {
+            content.innerHTML = this.renderAdminEventsTable(DataService.getAllEvents());
+        } else if (tabName === 'audit') {
+            content.innerHTML = this.renderAdminAuditTable(DB.auditLog || []);
+        }
+    },
 
-        renderAdminUsersTable(users) {
-            return `
+    renderAdminUsersTable(users) {
+        return `
             <div class="card">
                 <h3>Gestión de Usuarios</h3>
                 <div class="table-responsive">
@@ -1914,10 +1918,10 @@ const app = {
                 </div>
             </div>
         `;
-        },
+    },
 
-        renderAdminEventsTable(events) {
-            return `
+    renderAdminEventsTable(events) {
+        return `
             <div class="card">
                 <h3>Gestión de Eventos</h3>
                 <div class="table-responsive">
@@ -1948,10 +1952,10 @@ const app = {
                 </div>
             </div>
         `;
-        },
+    },
 
-        renderAdminAuditTable(logs) {
-            return `
+    renderAdminAuditTable(logs) {
+        return `
            <div class="card">
                 <h3>Auditoría del Sistema</h3>
                 <div class="table-responsive">
@@ -1978,26 +1982,26 @@ const app = {
                 </div>
            </div>
         `;
-        },
+    },
 
     // ===== MODALES Y DETALLES DE EVENTOS =====
     async showEventDetail(eventId) {
-            const modal = document.getElementById('event-detail-modal');
-            const content = document.getElementById('event-detail-content');
+        const modal = document.getElementById('event-detail-modal');
+        const content = document.getElementById('event-detail-content');
 
-            modal.classList.add('active');
-            content.innerHTML = '<div class="loading-spinner"></div>';
+        modal.classList.add('active');
+        content.innerHTML = '<div class="loading-spinner"></div>';
 
-            try {
-                const event = await SupabaseService.getEventById(eventId);
-                if (!event) throw new Error('Evento no encontrado');
+        try {
+            const event = await SupabaseService.getEventById(eventId);
+            if (!event) throw new Error('Evento no encontrado');
 
-                const organizer = event.organizer || { username: 'Desconocido', avatar: null };
-                const isOrganizer = AppState.currentUser && AppState.currentUser.id === event.organizer_id;
-                const isBuscador = AppState.currentUser && AppState.currentUser.role === 'BUSCADOR';
-                const applicantsCount = 0; // TODO: Obtener conteo real si es necesario
+            const organizer = event.organizer || { username: 'Desconocido', avatar: null };
+            const isOrganizer = AppState.currentUser && AppState.currentUser.id === event.organizer_id;
+            const isBuscador = AppState.currentUser && AppState.currentUser.role === 'BUSCADOR';
+            const applicantsCount = 0; // TODO: Obtener conteo real si es necesario
 
-                content.innerHTML = `
+            content.innerHTML = `
             <div class="event-detail">
                 <h3>${event.title}</h3>
                 <p style="color: var(--color-text-secondary); margin: var(--spacing-sm) 0;">${event.description}</p>
@@ -2059,78 +2063,78 @@ const app = {
                 ` : ''}
             </div>
             `;
-            } catch (error) {
-                console.error('Error cargando detalle:', error);
-                content.innerHTML = `<div class="error-msg">Error cargando evento: ${error.message}</div>`;
-            }
-        },
+        } catch (error) {
+            console.error('Error cargando detalle:', error);
+            content.innerHTML = `<div class="error-msg">Error cargando evento: ${error.message}</div>`;
+        }
+    },
 
     async confirmDeleteEvent(eventId) {
-            if (!confirm('⚠️ ¿Estás segura de borrar este evento?\n\nSe eliminará permanentemente.')) {
-                return;
-            }
+        if (!confirm('⚠️ ¿Estás segura de borrar este evento?\n\nSe eliminará permanentemente.')) {
+            return;
+        }
 
-            try {
-                await SupabaseService.deleteEvent(eventId);
-                this.closeEventDetail();
-                this.showToast('Evento eliminado correctamente', 'success');
+        try {
+            await SupabaseService.deleteEvent(eventId);
+            this.closeEventDetail();
+            this.showToast('Evento eliminado correctamente', 'success');
 
-                if (AppState.currentView === 'applications') {
-                    this.loadMyEventsView();
-                }
-            } catch (error) {
-                console.error('Error borrando evento:', error);
-                alert('Error al borrar el evento: ' + error.message);
+            if (AppState.currentView === 'applications') {
+                this.loadMyEventsView();
             }
-        },
+        } catch (error) {
+            console.error('Error borrando evento:', error);
+            alert('Error al borrar el evento: ' + error.message);
+        }
+    },
 
     async finalizeEvent(eventId) {
-            if (!confirm('¿Estás segura de finalizar el evento?\n\nEsto habilitará las votaciones para los participantes.')) return;
+        if (!confirm('¿Estás segura de finalizar el evento?\n\nEsto habilitará las votaciones para los participantes.')) return;
 
-            try {
-                await SupabaseService.finalizeEvent(eventId);
-                this.showToast('¡Evento finalizado! Ahora pueden valorarte.', 'success');
-                this.showEventDetail(eventId); // Recargar ver cambios
-            } catch (e) {
-                console.error(e);
-                this.showToast('Error finalizando evento', 'error');
-            }
-        },
+        try {
+            await SupabaseService.finalizeEvent(eventId);
+            this.showToast('¡Evento finalizado! Ahora pueden valorarte.', 'success');
+            this.showEventDetail(eventId); // Recargar ver cambios
+        } catch (e) {
+            console.error(e);
+            this.showToast('Error finalizando evento', 'error');
+        }
+    },
 
-        renderDetailActionButtons(event) {
-            const myApp = (AppState.myApplications || []).find(a => a.event_id === event.id);
+    renderDetailActionButtons(event) {
+        const myApp = (AppState.myApplications || []).find(a => a.event_id === event.id);
 
-            if (!myApp) {
-                return `<button class="btn btn-primary btn-block" onclick="app.applyToEvent('${event.id}')">Me interesa ❤️</button>`;
-            }
+        if (!myApp) {
+            return `<button class="btn btn-primary btn-block" onclick="app.applyToEvent('${event.id}')">Me interesa ❤️</button>`;
+        }
 
-            if (event.status === 'FINALIZADO' && (myApp.status === 'ACEPTADO' || myApp.status === 'FINALIZADO')) {
-                return `<button class="btn btn-primary btn-block" style="background: gold; color: black;" onclick="app.openRateModal('${event.id}', '${event.organizer_id}')">⭐ Valorar Organizadora</button>`;
-            }
+        if (event.status === 'FINALIZADO' && (myApp.status === 'ACEPTADO' || myApp.status === 'FINALIZADO')) {
+            return `<button class="btn btn-primary btn-block" style="background: gold; color: black;" onclick="app.openRateModal('${event.id}', '${event.organizer_id}')">⭐ Valorar Organizadora</button>`;
+        }
 
-            if (myApp.status === 'PENDIENTE') {
-                return `<div class="p-md text-center bg-gray rounded">⏳ Tu solicitud está pendiente de respuesta</div>`;
-            }
+        if (myApp.status === 'PENDIENTE') {
+            return `<div class="p-md text-center bg-gray rounded">⏳ Tu solicitud está pendiente de respuesta</div>`;
+        }
 
-            if (myApp.status === 'ACEPTADO') {
-                return `
+        if (myApp.status === 'ACEPTADO') {
+            return `
                 <div class="p-md bg-success-light rounded mb-md">
                     <h3>¡Felicidades! 🎉</h3>
                     <p>Has sido aceptado en este evento.</p>
                     <div style="margin-top: 10px; font-weight: bold;">📍 Ubicación: ${event.location || 'Se revelará pronto'}</div>
                 </div>
             `;
-            }
+        }
 
-            return '';
-        },
+        return '';
+    },
 
     async openRateModal(eventId, targetUserId) {
-            let modal = document.getElementById('rate-modal');
+        let modal = document.getElementById('rate-modal');
 
-            // Si no existe (caso raro), lo creamos
-            if (!modal) {
-                document.body.insertAdjacentHTML('beforeend', `
+        // Si no existe (caso raro), lo creamos
+        if (!modal) {
+            document.body.insertAdjacentHTML('beforeend', `
                 <div id="rate-modal" class="modal">
                     <div class="modal-content">
                         <div class="modal-header">
@@ -2141,17 +2145,17 @@ const app = {
                     </div>
                 </div>
             `);
-                modal = document.getElementById('rate-modal');
-            }
+            modal = document.getElementById('rate-modal');
+        }
 
-            const contentDiv = document.getElementById('rate-content');
-            if (!contentDiv) {
-                console.error('Error: rate-content div not found inside rate-modal');
-                return;
-            }
+        const contentDiv = document.getElementById('rate-content');
+        if (!contentDiv) {
+            console.error('Error: rate-content div not found inside rate-modal');
+            return;
+        }
 
-            // Renderizar la estructura del formulario de valoración
-            contentDiv.innerHTML = `
+        // Renderizar la estructura del formulario de valoración
+        contentDiv.innerHTML = `
             <div id="rate-target-info" style="text-align: center; margin-bottom: 20px;">
                 <!-- Se llenará con datos del usuario -->
                  <div class="loader">Cargando...</div>
@@ -2177,15 +2181,15 @@ const app = {
             <button class="btn btn-primary btn-block" onclick="app.submitRating('${eventId}', '${targetUserId}')">Enviar Valoración</button>
         `;
 
-            // Abrir modal
-            modal.classList.add('active');
+        // Abrir modal
+        modal.classList.add('active');
 
-            // Cargar datos del usuario a valorar
-            try {
-                const targetUser = await SupabaseService.getUserById(targetUserId);
-                const infoDiv = document.getElementById('rate-target-info');
-                if (infoDiv) {
-                    infoDiv.innerHTML = `
+        // Cargar datos del usuario a valorar
+        try {
+            const targetUser = await SupabaseService.getUserById(targetUserId);
+            const infoDiv = document.getElementById('rate-target-info');
+            if (infoDiv) {
+                infoDiv.innerHTML = `
                     <div style="position: relative; display: inline-block;">
                         <img src="${targetUser.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${targetUser.username}`}" 
                             style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 10px; border: 3px solid var(--color-primary);">
@@ -2198,99 +2202,99 @@ const app = {
                         ${targetUser.role === 'OFERENTE' ? 'Organizadora del evento' : 'Participante'}
                     </p>
                 `;
-                }
-            } catch (error) {
-                console.error('Error cargando usuario a valorar:', error);
-                document.getElementById('rate-target-info').innerHTML = '<p class="error">Error cargando perfil</p>';
             }
-        },
+        } catch (error) {
+            console.error('Error cargando usuario a valorar:', error);
+            document.getElementById('rate-target-info').innerHTML = '<p class="error">Error cargando perfil</p>';
+        }
+    },
 
-        setRating(value) {
-            const input = document.getElementById('rate-value');
-            if (input) input.value = value;
+    setRating(value) {
+        const input = document.getElementById('rate-value');
+        if (input) input.value = value;
 
-            const stars = document.querySelectorAll('.star-rating span');
-            stars.forEach((star, index) => {
-                star.style.color = index < value ? 'gold' : '#ddd';
-                star.style.transform = index < value ? 'scale(1.1)' : 'scale(1)';
-                star.style.transition = 'all 0.2s ease';
-            });
-        },
+        const stars = document.querySelectorAll('.star-rating span');
+        stars.forEach((star, index) => {
+            star.style.color = index < value ? 'gold' : '#ddd';
+            star.style.transform = index < value ? 'scale(1.1)' : 'scale(1)';
+            star.style.transition = 'all 0.2s ease';
+        });
+    },
 
     async submitRating(eventId, reviewedId) {
-            const rating = parseInt(document.getElementById('rate-value').value);
-            const comment = document.getElementById('rate-comment').value;
+        const rating = parseInt(document.getElementById('rate-value').value);
+        const comment = document.getElementById('rate-comment').value;
 
-            if (rating === 0) {
-                this.showToast('Por favor selecciona una puntuación', 'warning');
-                return;
-            }
+        if (rating === 0) {
+            this.showToast('Por favor selecciona una puntuación', 'warning');
+            return;
+        }
 
-            try {
-                await SupabaseService.submitEventRatings([{
-                    reviewer_id: AppState.currentUser.id,
-                    reviewed_id: reviewedId,
-                    event_id: eventId,
-                    rating: rating,
-                    comment: comment
-                }]);
+        try {
+            await SupabaseService.submitEventRatings([{
+                reviewer_id: AppState.currentUser.id,
+                reviewed_id: reviewedId,
+                event_id: eventId,
+                rating: rating,
+                comment: comment
+            }]);
 
-                this.showToast('¡Gracias por tu valoración!', 'success');
-                document.getElementById('rate-modal').classList.remove('active');
-            } catch (error) {
-                console.error('Error enviando valoración:', error);
-                this.showToast('Error al enviar valoración', 'error');
-            }
-        },
+            this.showToast('¡Gracias por tu valoración!', 'success');
+            document.getElementById('rate-modal').classList.remove('active');
+        } catch (error) {
+            console.error('Error enviando valoración:', error);
+            this.showToast('Error al enviar valoración', 'error');
+        }
+    },
 
-        editEvent(eventId) {
-            alert('🚧 Funcionalidad de modificación en desarrollo.');
-        },
+    editEvent(eventId) {
+        alert('🚧 Funcionalidad de modificación en desarrollo.');
+    },
 
-        closeEventDetail() {
-            const modal = document.getElementById('event-detail-modal');
-            modal.classList.remove('active');
+    closeEventDetail() {
+        const modal = document.getElementById('event-detail-modal');
+        modal.classList.remove('active');
 
-            // Si estamos en la vista de mis eventos, recargar para actualizar contadores
-            if (AppState.currentView === 'applications' && AppState.currentUser.role === 'OFERENTE') {
-                this.loadMyEventsView();
-            }
-        },
+        // Si estamos en la vista de mis eventos, recargar para actualizar contadores
+        if (AppState.currentView === 'applications' && AppState.currentUser.role === 'OFERENTE') {
+            this.loadMyEventsView();
+        }
+    },
 
-        showCreateEvent() {
-            const modal = document.getElementById('create-event-modal');
-            modal.classList.add('active');
-        },
+    showCreateEvent() {
+        const modal = document.getElementById('create-event-modal');
+        modal.classList.add('active');
+    },
 
-        closeCreateEvent() {
-            const modal = document.getElementById('create-event-modal');
-            modal.classList.remove('active');
-        },
+    closeCreateEvent() {
+        const modal = document.getElementById('create-event-modal');
+        modal.classList.remove('active');
+    },
 
     // ===== GESTIÓN DE CANDIDATOS (OFERENTES) =====
     async manageEventApplicants(eventId) {
-            const content = document.getElementById('event-detail-content');
+        const content = document.getElementById('event-detail-content');
 
-            // Mostrar estado de carga
-            content.innerHTML = '<div class="loading-spinner"></div>';
+        // Mostrar estado de carga
+        content.innerHTML = '<div class="loading-spinner"></div>';
 
-            try {
-                // 1. Obtener evento y postulaciones REALES de Supabase
-                const [event, applications] = await Promise.all([
-                    SupabaseService.getEventById(eventId),
-                    SupabaseService.getEventApplications(eventId)
-                ]);
+        try {
+            // 1. Obtener evento y postulaciones REALES de Supabase
+            const [event, applications] = await Promise.all([
+                SupabaseService.getEventById(eventId),
+                SupabaseService.getEventApplications(eventId)
+            ]);
 
-                if (!event) throw new Error('Evento no encontrado');
+            if (!event) throw new Error('Evento no encontrado');
 
-                if (!applications || applications.length === 0) {
-                    this.showToast('No hay candidaturas para este evento aún', 'info');
-                    // Volver a mostrar el detalle normal
-                    this.showEventDetail(eventId);
-                    return;
-                }
+            if (!applications || applications.length === 0) {
+                this.showToast('No hay candidaturas para este evento aún', 'info');
+                // Volver a mostrar el detalle normal
+                this.showEventDetail(eventId);
+                return;
+            }
 
-                content.innerHTML = `
+            content.innerHTML = `
                 <div class="event-detail">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--spacing-md);">
                         <h3>Gestionar Candidatos: ${event.title}</h3>
@@ -2303,20 +2307,20 @@ const app = {
                     
                     <div style="display: flex; flex-direction: column; gap: var(--spacing-md);">
                         ${applications.map(app => {
-                    // Extraer el usuario de la relación 'applicant' (que viene del join en SupabaseService)
-                    const user = app.applicant;
-                    if (!user) return ''; // Skip si no hay usuario
+                // Extraer el usuario de la relación 'applicant' (que viene del join en SupabaseService)
+                const user = app.applicant;
+                if (!user) return ''; // Skip si no hay usuario
 
-                    // Calcular validación visual
-                    const borderColor = app.status === 'ACEPTADO' ? 'var(--color-success)' :
-                        app.status === 'RECHAZADO' ? 'var(--color-error)' :
-                            app.status === 'FINALIZADO' ? 'var(--color-accent)' :
-                                'var(--color-warning)'; // Pendiente
+                // Calcular validación visual
+                const borderColor = app.status === 'ACEPTADO' ? 'var(--color-success)' :
+                    app.status === 'RECHAZADO' ? 'var(--color-error)' :
+                        app.status === 'FINALIZADO' ? 'var(--color-accent)' :
+                            'var(--color-warning)'; // Pendiente
 
-                    // Normalizar avatar
-                    const avatarUrl = user.avatar || user.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`;
+                // Normalizar avatar
+                const avatarUrl = user.avatar || user.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`;
 
-                    return `
+                return `
                                 <div class="card" style="border-left: 4px solid ${borderColor}; padding: var(--spacing-md);">
                                     <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: var(--spacing-sm);">
                                         
@@ -2366,125 +2370,125 @@ const app = {
                                     ` : ''}
                                 </div>
                             `;
-                }).join('')}
+            }).join('')}
                     </div>
                 </div>
             `;
 
-            } catch (error) {
-                console.error('Error gestionando candidatos:', error);
-                content.innerHTML = `<div class="error-msg">Error cargando candidatos: ${error.message}</div>`;
-            }
-        },
+        } catch (error) {
+            console.error('Error gestionando candidatos:', error);
+            content.innerHTML = `<div class="error-msg">Error cargando candidatos: ${error.message}</div>`;
+        }
+    },
 
     async acceptCandidate(applicationId, eventId, userId) {
-            if (!confirm('¿Aceptar a este usuario para el evento? Se le enviará una notificación.')) return;
+        if (!confirm('¿Aceptar a este usuario para el evento? Se le enviará una notificación.')) return;
 
-            try {
-                await SupabaseService.acceptApplicant(eventId, userId);
+        try {
+            await SupabaseService.acceptApplicant(eventId, userId);
 
-                this.showToast('Candidato aceptado exitosamente', 'success');
+            this.showToast('Candidato aceptado exitosamente', 'success');
 
-                // Verificar si se alcanzó la capacidad para cerrar evento
-                const [event, applications] = await Promise.all([
-                    SupabaseService.getEventById(eventId),
-                    SupabaseService.getEventApplications(eventId)
-                ]);
+            // Verificar si se alcanzó la capacidad para cerrar evento
+            const [event, applications] = await Promise.all([
+                SupabaseService.getEventById(eventId),
+                SupabaseService.getEventApplications(eventId)
+            ]);
 
-                const acceptedCount = applications.filter(a => a.status === 'ACEPTADO').length;
+            const acceptedCount = applications.filter(a => a.status === 'ACEPTADO').length;
 
-                if (event && acceptedCount >= event.capacity) {
-                    // Cerrar evento automáticamente
-                    // Asumimos que existe updateEventStatus o usamos updateEvent
-                    await SupabaseService.updateEvent(eventId, { status: 'CERRADO' }); // O FINALIZADO? CERRADO parece mejor para "no más gente"
-                    this.showToast('🔒 ¡Evento cerrado por completarse el aforo!', 'info');
-                }
-
-                // Recargar la lista
-                this.manageEventApplicants(eventId);
-            } catch (error) {
-                console.error('Error aceptando:', error);
-                this.showToast('Error aceptando candidato', 'error');
+            if (event && acceptedCount >= event.capacity) {
+                // Cerrar evento automáticamente
+                // Asumimos que existe updateEventStatus o usamos updateEvent
+                await SupabaseService.updateEvent(eventId, { status: 'CERRADO' }); // O FINALIZADO? CERRADO parece mejor para "no más gente"
+                this.showToast('🔒 ¡Evento cerrado por completarse el aforo!', 'info');
             }
-        },
+
+            // Recargar la lista
+            this.manageEventApplicants(eventId);
+        } catch (error) {
+            console.error('Error aceptando:', error);
+            this.showToast('Error aceptando candidato', 'error');
+        }
+    },
 
     async rejectCandidate(applicationId, eventId) {
-            if (!confirm('¿Rechazar esta solicitud?')) return;
+        if (!confirm('¿Rechazar esta solicitud?')) return;
 
-            try {
-                await SupabaseService.updateApplicationStatus(applicationId, 'RECHAZADO', eventId);
-                this.showToast('Solicitud rechazada', 'success');
-                this.manageEventApplicants(eventId);
-            } catch (error) {
-                console.error('Error rechazando:', error);
-                this.showToast('Error rechazando candidato', 'error');
-            }
-        },
+        try {
+            await SupabaseService.updateApplicationStatus(applicationId, 'RECHAZADO', eventId);
+            this.showToast('Solicitud rechazada', 'success');
+            this.manageEventApplicants(eventId);
+        } catch (error) {
+            console.error('Error rechazando:', error);
+            this.showToast('Error rechazando candidato', 'error');
+        }
+    },
 
-        rejectApplicant(eventId, userId) {
-            if (DataService.rejectApplicant(eventId, userId)) {
-                // Crear notificación para el buscador rechazado
-                const event = DataService.getEventById(eventId);
-                const user = DataService.getUserById(userId);
-                DataService.createNotification({
-                    userId: userId,
-                    type: 'APPLICATION_REJECTED',
-                    title: '❌ Candidatura no aceptada',
-                    message: `Tu candidatura para el evento "${event.title}" no ha sido aceptada. Sigue explorando otros eventos.`,
-                    relatedId: eventId
-                });
+    rejectApplicant(eventId, userId) {
+        if (DataService.rejectApplicant(eventId, userId)) {
+            // Crear notificación para el buscador rechazado
+            const event = DataService.getEventById(eventId);
+            const user = DataService.getUserById(userId);
+            DataService.createNotification({
+                userId: userId,
+                type: 'APPLICATION_REJECTED',
+                title: '❌ Candidatura no aceptada',
+                message: `Tu candidatura para el evento "${event.title}" no ha sido aceptada. Sigue explorando otros eventos.`,
+                relatedId: eventId
+            });
 
-                this.showToast('Candidato rechazado', 'info');
-                this.manageEventApplicants(eventId); // Recargar
-                this.loadApplicationsView(); // Actualizar lista
-            } else {
-                this.showToast('Error al rechazar candidato', 'error');
-            }
-        },
+            this.showToast('Candidato rechazado', 'info');
+            this.manageEventApplicants(eventId); // Recargar
+            this.loadApplicationsView(); // Actualizar lista
+        } else {
+            this.showToast('Error al rechazar candidato', 'error');
+        }
+    },
 
     async viewUserProfile(userId) {
-            try {
-                const user = await SupabaseService.getUserById(userId);
-                if (!user) {
-                    this.showToast('Error: Usuario no encontrado', 'error');
-                    return;
-                }
-                // Fetch reviews to ensure fresh rating display
-                const reviews = await SupabaseService.getReviewsByReviewed(userId);
-                this._renderProfileModal(user, reviews);
-            } catch (error) {
-                console.error('Error viewing profile:', error);
-                this.showToast('Error cargando perfil del usuario', 'error');
+        try {
+            const user = await SupabaseService.getUserById(userId);
+            if (!user) {
+                this.showToast('Error: Usuario no encontrado', 'error');
+                return;
             }
-        },
+            // Fetch reviews to ensure fresh rating display
+            const reviews = await SupabaseService.getReviewsByReviewed(userId);
+            this._renderProfileModal(user, reviews);
+        } catch (error) {
+            console.error('Error viewing profile:', error);
+            this.showToast('Error cargando perfil del usuario', 'error');
+        }
+    },
 
     async viewApplicantProfile(userId) {
-            try {
-                const user = await SupabaseService.getUserById(userId);
-                if (!user) return;
-                this._renderProfileModal(user);
-            } catch (error) {
-                console.error('Error viewing applicant:', error);
-            }
-        },
+        try {
+            const user = await SupabaseService.getUserById(userId);
+            if (!user) return;
+            this._renderProfileModal(user);
+        } catch (error) {
+            console.error('Error viewing applicant:', error);
+        }
+    },
 
-        _renderProfileModal(user, reviews = []) {
-            const modal = document.getElementById('event-detail-modal');
-            const content = document.getElementById('event-detail-content');
-            document.getElementById('event-detail-title').textContent = 'Perfil de Usuario';
-            document.getElementById('event-detail-actions').innerHTML = ''; // Limpiar acciones
+    _renderProfileModal(user, reviews = []) {
+        const modal = document.getElementById('event-detail-modal');
+        const content = document.getElementById('event-detail-content');
+        document.getElementById('event-detail-title').textContent = 'Perfil de Usuario';
+        document.getElementById('event-detail-actions').innerHTML = ''; // Limpiar acciones
 
-            // Calcular valoración media en tiempo real en el frontend (para respuesta inmediata)
-            const ratingSum = reviews.reduce((sum, r) => sum + r.rating, 0);
-            const avgRating = reviews.length > 0 ? (ratingSum / reviews.length).toFixed(1) : (user.rating || 0).toFixed(1);
+        // Calcular valoración media en tiempo real en el frontend (para respuesta inmediata)
+        const ratingSum = reviews.reduce((sum, r) => sum + r.rating, 0);
+        const avgRating = reviews.length > 0 ? (ratingSum / reviews.length).toFixed(1) : (user.rating || 0).toFixed(1);
 
-            const verificationBadge = user.verified === 'VERIFICADO'
-                ? '<span class="verification-badge">✓ Verificado</span>'
-                : user.verified === 'PENDIENTE'
-                    ? '<span class="badge badge-warning">⏳ Verificación pendiente</span>'
-                    : '<span class="badge" style="background: var(--color-error);">❌ No verificado</span>';
+        const verificationBadge = user.verified === 'VERIFICADO'
+            ? '<span class="verification-badge">✓ Verificado</span>'
+            : user.verified === 'PENDIENTE'
+                ? '<span class="badge badge-warning">⏳ Verificación pendiente</span>'
+                : '<span class="badge" style="background: var(--color-error);">❌ No verificado</span>';
 
-            content.innerHTML = `
+        content.innerHTML = `
             <div class="profile-grid">
                 <div class="profile-main">
                     <div class="card profile-header">
@@ -2583,98 +2587,98 @@ const app = {
             </div>
         `;
 
-            modal.classList.add('active');
-        },
+        modal.classList.add('active');
+    },
 
-        deleteUser(userId) {
-            if (!confirm('¿Seguro que quieres eliminar este usuario?')) return;
-            DataService.deleteUser(userId);
-            this.switchAdminTab('users');
-            this.showToast('Usuario eliminado', 'success');
-        },
+    deleteUser(userId) {
+        if (!confirm('¿Seguro que quieres eliminar este usuario?')) return;
+        DataService.deleteUser(userId);
+        this.switchAdminTab('users');
+        this.showToast('Usuario eliminado', 'success');
+    },
 
-        deleteEvent(eventId) {
-            if (!confirm('¿Seguro que quieres eliminar este evento?')) return;
-            DataService.deleteEvent(eventId);
-            this.switchAdminTab('events');
-            this.showToast('Evento eliminado', 'success');
-        },
+    deleteEvent(eventId) {
+        if (!confirm('¿Seguro que quieres eliminar este evento?')) return;
+        DataService.deleteEvent(eventId);
+        this.switchAdminTab('events');
+        this.showToast('Evento eliminado', 'success');
+    },
 
-        // ===== CREAR EVENTOS =====
-        showCreateEvent() {
-            const modal = document.getElementById('create-event-modal');
-            modal.classList.add('active');
-        },
+    // ===== CREAR EVENTOS =====
+    showCreateEvent() {
+        const modal = document.getElementById('create-event-modal');
+        modal.classList.add('active');
+    },
 
-        closeCreateEvent() {
-            const modal = document.getElementById('create-event-modal');
-            modal.classList.remove('active');
-        },
+    closeCreateEvent() {
+        const modal = document.getElementById('create-event-modal');
+        modal.classList.remove('active');
+    },
 
     async handleCreateEvent(event) {
-            event.preventDefault();
+        event.preventDefault();
 
-            const title = document.getElementById('event-title').value;
-            const date = document.getElementById('event-date').value;
-            const time = document.getElementById('event-time').value;
-            const location = document.getElementById('event-location').value;
+        const title = document.getElementById('event-title').value;
+        const date = document.getElementById('event-date').value;
+        const time = document.getElementById('event-time').value;
+        const location = document.getElementById('event-location').value;
 
-            let type = 'TRADICIONAL'; // Valor por defecto
-            const typeInput = document.querySelector('input[name="gangbang-level"]:checked');
-            if (typeInput) {
-                type = typeInput.value;
-            }
-
-            const capacity = document.getElementById('event-capacity').value;
-            const zone = document.getElementById('event-zone').value;
-            const description = document.getElementById('event-description').value;
-            const rules = document.getElementById('event-rules').value;
-
-            try {
-                this.showToast('Creando evento...', 'info');
-
-                await SupabaseService.createEvent({
-                    title,
-                    date,
-                    time,
-                    location,
-                    gangbang_level: type, // Mapeo al nombre de col en Supabase
-                    capacity: parseInt(capacity),
-                    zone,
-                    description,
-                    rules
-                }, AppState.currentUser.id);
-
-                this.showToast('¡Evento creado exitosamente!', 'success');
-                this.closeCreateEvent();
-                // Ir a mis eventos
-                this.showView('applications'); // Recargará la vista automáticamente
-            } catch (error) {
-                console.error('Error creando evento:', error);
-                this.showToast('Error al crear el evento', 'error');
-            }
+        let type = 'TRADICIONAL'; // Valor por defecto
+        const typeInput = document.querySelector('input[name="gangbang-level"]:checked');
+        if (typeInput) {
+            type = typeInput.value;
         }
-    };
 
-    // Inicializar cuando el DOM esté listo
-    document.addEventListener('DOMContentLoaded', () => {
-        app.init();
-    });
+        const capacity = document.getElementById('event-capacity').value;
+        const zone = document.getElementById('event-zone').value;
+        const description = document.getElementById('event-description').value;
+        const rules = document.getElementById('event-rules').value;
 
-    window.app = app;
+        try {
+            this.showToast('Creando evento...', 'info');
 
-    // ===== PROFILE UX IMPROVEMENTS (Overwrites previous methods) =====
+            await SupabaseService.createEvent({
+                title,
+                date,
+                time,
+                location,
+                gangbang_level: type, // Mapeo al nombre de col en Supabase
+                capacity: parseInt(capacity),
+                zone,
+                description,
+                rules
+            }, AppState.currentUser.id);
 
-    app.toggleProfileEdit = function () {
-        const user = AppState.currentUser;
-        console.log('Editando perfil (UX Improved). Datos:', user);
+            this.showToast('¡Evento creado exitosamente!', 'success');
+            this.closeCreateEvent();
+            // Ir a mis eventos
+            this.showView('applications'); // Recargará la vista automáticamente
+        } catch (error) {
+            console.error('Error creando evento:', error);
+            this.showToast('Error al crear el evento', 'error');
+        }
+    }
+};
 
-        // Normalizar avatar
-        const currentAvatar = user.avatar || user.avatar_url;
-        const container = document.getElementById('profile-container');
-        const zones = ['norte', 'sur', 'este', 'oeste', 'centro'];
+// Inicializar cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', () => {
+    app.init();
+});
 
-        container.innerHTML = `
+window.app = app;
+
+// ===== PROFILE UX IMPROVEMENTS (Overwrites previous methods) =====
+
+app.toggleProfileEdit = function () {
+    const user = AppState.currentUser;
+    console.log('Editando perfil (UX Improved). Datos:', user);
+
+    // Normalizar avatar
+    const currentAvatar = user.avatar || user.avatar_url;
+    const container = document.getElementById('profile-container');
+    const zones = ['norte', 'sur', 'este', 'oeste', 'centro'];
+
+    container.innerHTML = `
         <div class="card" style="max-width: 600px; margin: 0 auto;">
             <h2 style="margin-bottom: 20px;">✏️ Editar Perfil</h2>
             <form id="profile-edit-form" onsubmit="app.saveProfile(event)">
@@ -2753,211 +2757,211 @@ const app = {
             </form>
         </div>
     `;
-    };
+};
 
-    app.previewAvatar = function (input) {
-        if (input.files && input.files[0]) {
-            const reader = new FileReader();
-            reader.onload = function (e) {
-                document.getElementById('avatar-preview').src = e.target.result;
+app.previewAvatar = function (input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            document.getElementById('avatar-preview').src = e.target.result;
+        }
+        reader.readAsDataURL(input.files[0]);
+    }
+};
+
+app.deleteAvatar = async function () {
+    if (!confirm('¿Seguro que quieres borrar tu foto de perfil actual?')) return;
+    try {
+        await SupabaseService.updateUser(AppState.currentUser.id, { avatar_url: null });
+        const updated = await SupabaseService.getCurrentUser();
+        if (updated) updated.avatar = null;
+        AppState.currentUser = updated;
+        this.toggleProfileEdit();
+        this.showToast('Foto de perfil eliminada', 'success');
+    } catch (error) {
+        console.error(error);
+        this.showToast('Error borrando foto: ' + error.message, 'error');
+    }
+};
+
+app.saveProfile = async function (event) {
+    event.preventDefault();
+    const form = event.target;
+    const user = AppState.currentUser;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Guardando...';
+
+    try {
+        const selectedZones = Array.from(form.querySelectorAll('input[name="searchZones"]:checked'))
+            .map(cb => cb.value);
+
+        let updates = {
+            bio: form.bio.value,
+            age: form.age.value ? parseInt(form.age.value) : null,
+            search_zones: selectedZones
+        };
+
+        const avatarFile = form.avatarFile.files[0];
+        if (avatarFile) {
+            const path = `${user.id}/${Date.now()}_avatar`;
+            const avatarUrl = await SupabaseService.uploadFile('avatars', path, avatarFile);
+            updates.avatar_url = avatarUrl;
+        }
+
+        const galleryFiles = form.galleryFiles.files;
+        if (galleryFiles.length > 0) {
+            let currentGallery = user.gallery || [];
+            if (typeof currentGallery === 'string') currentGallery = JSON.parse(currentGallery);
+            for (let i = 0; i < galleryFiles.length; i++) {
+                const file = galleryFiles[i];
+                const path = `${user.id}/${Date.now()}_gallery_${i}`;
+                const url = await SupabaseService.uploadFile('gallery', path, file);
+                currentGallery.push(url);
             }
-            reader.readAsDataURL(input.files[0]);
+            updates.gallery = currentGallery;
         }
-    };
 
-    app.deleteAvatar = async function () {
-        if (!confirm('¿Seguro que quieres borrar tu foto de perfil actual?')) return;
-        try {
-            await SupabaseService.updateUser(AppState.currentUser.id, { avatar_url: null });
-            const updated = await SupabaseService.getCurrentUser();
-            if (updated) updated.avatar = null;
-            AppState.currentUser = updated;
-            this.toggleProfileEdit();
-            this.showToast('Foto de perfil eliminada', 'success');
-        } catch (error) {
-            console.error(error);
-            this.showToast('Error borrando foto: ' + error.message, 'error');
+        await SupabaseService.updateUser(user.id, updates);
+
+        const updatedProfile = await SupabaseService.getCurrentUser();
+        if (updatedProfile) {
+            updatedProfile.avatar = updatedProfile.avatar_url || updatedProfile.avatar;
         }
-    };
+        AppState.currentUser = updatedProfile;
 
-    app.saveProfile = async function (event) {
-        event.preventDefault();
-        const form = event.target;
-        const user = AppState.currentUser;
-        const submitBtn = form.querySelector('button[type="submit"]');
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Guardando...';
+        this.loadProfileView();
+        this.showToast('Perfil actualizado correctamente', 'success');
 
-        try {
-            const selectedZones = Array.from(form.querySelectorAll('input[name="searchZones"]:checked'))
-                .map(cb => cb.value);
+    } catch (error) {
+        console.error('Error guardando perfil:', error);
+        this.showToast('Error: ' + (error.message || 'No se pudo guardar'), 'error');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Guardar Cambios';
+    }
+};
 
-            let updates = {
-                bio: form.bio.value,
-                age: form.age.value ? parseInt(form.age.value) : null,
-                search_zones: selectedZones
-            };
+app.deleteGalleryImage = async function (imageUrl) {
+    if (!confirm('¿Borrar esta foto de la galería?')) return;
 
-            const avatarFile = form.avatarFile.files[0];
-            if (avatarFile) {
-                const path = `${user.id}/${Date.now()}_avatar`;
+    const user = AppState.currentUser;
+    try {
+        const currentGallery = user.gallery || [];
+        const newGallery = currentGallery.filter(img => img !== imageUrl);
+
+        await SupabaseService.updateUser(user.id, { gallery: newGallery });
+        SupabaseService.deleteFile('gallery', imageUrl).catch(console.warn);
+
+        user.gallery = newGallery;
+        this.toggleProfileEdit();
+        this.showToast('Foto eliminada', 'success');
+
+    } catch (error) {
+        console.error(error);
+        this.showToast('Error borrando imagen', 'error');
+    }
+};
+
+// ===== PROFILE FIX V2 (Extensions & Better Debug) =====
+
+app.saveProfile = async function (event) {
+    event.preventDefault();
+    const form = event.target;
+    const user = AppState.currentUser;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Guardando...';
+
+    try {
+        console.log('🏁 Iniciando guardado de perfil...');
+
+        // 1. Recoger datos básicos
+        const selectedZones = Array.from(form.querySelectorAll('input[name="searchZones"]:checked'))
+            .map(cb => cb.value);
+
+        let updates = {
+            bio: form.bio.value,
+            age: form.age.value ? parseInt(form.age.value) : null,
+            search_zones: selectedZones
+        };
+
+        // 2. Subir avatar (CON EXTENSIÓN)
+        const avatarFile = form.avatarFile.files[0];
+        if (avatarFile) {
+            const ext = avatarFile.name.split('.').pop();
+            const path = `${user.id}/${Date.now()}_avatar.${ext}`;
+            console.log('Subiendo avatar a:', path);
+
+            try {
                 const avatarUrl = await SupabaseService.uploadFile('avatars', path, avatarFile);
                 updates.avatar_url = avatarUrl;
+                console.log('Avatar subido OK:', avatarUrl);
+            } catch (uploadErr) {
+                console.error('Error subida avatar:', uploadErr);
+                alert('Error subiendo avatar: ' + uploadErr.message);
+                throw uploadErr;
             }
-
-            const galleryFiles = form.galleryFiles.files;
-            if (galleryFiles.length > 0) {
-                let currentGallery = user.gallery || [];
-                if (typeof currentGallery === 'string') currentGallery = JSON.parse(currentGallery);
-                for (let i = 0; i < galleryFiles.length; i++) {
-                    const file = galleryFiles[i];
-                    const path = `${user.id}/${Date.now()}_gallery_${i}`;
-                    const url = await SupabaseService.uploadFile('gallery', path, file);
-                    currentGallery.push(url);
-                }
-                updates.gallery = currentGallery;
-            }
-
-            await SupabaseService.updateUser(user.id, updates);
-
-            const updatedProfile = await SupabaseService.getCurrentUser();
-            if (updatedProfile) {
-                updatedProfile.avatar = updatedProfile.avatar_url || updatedProfile.avatar;
-            }
-            AppState.currentUser = updatedProfile;
-
-            this.loadProfileView();
-            this.showToast('Perfil actualizado correctamente', 'success');
-
-        } catch (error) {
-            console.error('Error guardando perfil:', error);
-            this.showToast('Error: ' + (error.message || 'No se pudo guardar'), 'error');
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Guardar Cambios';
         }
-    };
 
-    app.deleteGalleryImage = async function (imageUrl) {
-        if (!confirm('¿Borrar esta foto de la galería?')) return;
+        // 3. Subir galería (CON EXTENSIÓN)
+        const galleryFiles = form.galleryFiles.files;
+        if (galleryFiles.length > 0) {
+            let currentGallery = user.gallery || [];
+            if (typeof currentGallery === 'string') currentGallery = JSON.parse(currentGallery);
 
-        const user = AppState.currentUser;
-        try {
-            const currentGallery = user.gallery || [];
-            const newGallery = currentGallery.filter(img => img !== imageUrl);
-
-            await SupabaseService.updateUser(user.id, { gallery: newGallery });
-            SupabaseService.deleteFile('gallery', imageUrl).catch(console.warn);
-
-            user.gallery = newGallery;
-            this.toggleProfileEdit();
-            this.showToast('Foto eliminada', 'success');
-
-        } catch (error) {
-            console.error(error);
-            this.showToast('Error borrando imagen', 'error');
-        }
-    };
-
-    // ===== PROFILE FIX V2 (Extensions & Better Debug) =====
-
-    app.saveProfile = async function (event) {
-        event.preventDefault();
-        const form = event.target;
-        const user = AppState.currentUser;
-        const submitBtn = form.querySelector('button[type="submit"]');
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Guardando...';
-
-        try {
-            console.log('🏁 Iniciando guardado de perfil...');
-
-            // 1. Recoger datos básicos
-            const selectedZones = Array.from(form.querySelectorAll('input[name="searchZones"]:checked'))
-                .map(cb => cb.value);
-
-            let updates = {
-                bio: form.bio.value,
-                age: form.age.value ? parseInt(form.age.value) : null,
-                search_zones: selectedZones
-            };
-
-            // 2. Subir avatar (CON EXTENSIÓN)
-            const avatarFile = form.avatarFile.files[0];
-            if (avatarFile) {
-                const ext = avatarFile.name.split('.').pop();
-                const path = `${user.id}/${Date.now()}_avatar.${ext}`;
-                console.log('Subiendo avatar a:', path);
+            for (let i = 0; i < galleryFiles.length; i++) {
+                const file = galleryFiles[i];
+                const ext = file.name.split('.').pop();
+                const path = `${user.id}/${Date.now()}_gallery_${i}.${ext}`;
 
                 try {
-                    const avatarUrl = await SupabaseService.uploadFile('avatars', path, avatarFile);
-                    updates.avatar_url = avatarUrl;
-                    console.log('Avatar subido OK:', avatarUrl);
-                } catch (uploadErr) {
-                    console.error('Error subida avatar:', uploadErr);
-                    alert('Error subiendo avatar: ' + uploadErr.message);
-                    throw uploadErr;
+                    const url = await SupabaseService.uploadFile('gallery', path, file);
+                    currentGallery.push(url);
+                    console.log('Foto galería subida:', url);
+                } catch (galleryErr) {
+                    console.error('Error subida galería:', galleryErr);
+                    alert('Error subiendo foto de galería: ' + galleryErr.message);
+                    throw galleryErr; // Stop process
                 }
             }
-
-            // 3. Subir galería (CON EXTENSIÓN)
-            const galleryFiles = form.galleryFiles.files;
-            if (galleryFiles.length > 0) {
-                let currentGallery = user.gallery || [];
-                if (typeof currentGallery === 'string') currentGallery = JSON.parse(currentGallery);
-
-                for (let i = 0; i < galleryFiles.length; i++) {
-                    const file = galleryFiles[i];
-                    const ext = file.name.split('.').pop();
-                    const path = `${user.id}/${Date.now()}_gallery_${i}.${ext}`;
-
-                    try {
-                        const url = await SupabaseService.uploadFile('gallery', path, file);
-                        currentGallery.push(url);
-                        console.log('Foto galería subida:', url);
-                    } catch (galleryErr) {
-                        console.error('Error subida galería:', galleryErr);
-                        alert('Error subiendo foto de galería: ' + galleryErr.message);
-                        throw galleryErr; // Stop process
-                    }
-                }
-                updates.gallery = currentGallery;
-            }
-
-            // 4. Actualizar usuario
-            console.log('Actualizando usuario en DB:', updates);
-            await SupabaseService.updateUser(user.id, updates);
-
-            // 5. Refrescar
-            const updatedProfile = await SupabaseService.getCurrentUser();
-            if (updatedProfile) {
-                updatedProfile.avatar = updatedProfile.avatar_url || updatedProfile.avatar;
-            }
-            AppState.currentUser = updatedProfile;
-
-            this.loadProfileView();
-            this.showToast('Perfil actualizado correctamente', 'success');
-
-        } catch (error) {
-            console.error('Error FATAL guardando perfil:', error);
-            // Alerta visible para que el usuario nos diga el error exacto
-            alert('ERROR: ' + (error.message || error));
-
-            this.showToast('Error: ' + (error.message || 'No se pudo guardar'), 'error');
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Guardar Cambios';
+            updates.gallery = currentGallery;
         }
-    };
 
-    // ===== PROFILE FIX V3 (Gallery Preview) =====
+        // 4. Actualizar usuario
+        console.log('Actualizando usuario en DB:', updates);
+        await SupabaseService.updateUser(user.id, updates);
 
-    // Sobrescribimos toggleProfileEdit para añadir el contenedor de preview y el evento onchange
-    app.toggleProfileEdit = function () {
-        const user = AppState.currentUser;
-        const currentAvatar = user.avatar || user.avatar_url;
-        const container = document.getElementById('profile-container');
-        const zones = ['norte', 'sur', 'este', 'oeste', 'centro'];
+        // 5. Refrescar
+        const updatedProfile = await SupabaseService.getCurrentUser();
+        if (updatedProfile) {
+            updatedProfile.avatar = updatedProfile.avatar_url || updatedProfile.avatar;
+        }
+        AppState.currentUser = updatedProfile;
 
-        container.innerHTML = `
+        this.loadProfileView();
+        this.showToast('Perfil actualizado correctamente', 'success');
+
+    } catch (error) {
+        console.error('Error FATAL guardando perfil:', error);
+        // Alerta visible para que el usuario nos diga el error exacto
+        alert('ERROR: ' + (error.message || error));
+
+        this.showToast('Error: ' + (error.message || 'No se pudo guardar'), 'error');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Guardar Cambios';
+    }
+};
+
+// ===== PROFILE FIX V3 (Gallery Preview) =====
+
+// Sobrescribimos toggleProfileEdit para añadir el contenedor de preview y el evento onchange
+app.toggleProfileEdit = function () {
+    const user = AppState.currentUser;
+    const currentAvatar = user.avatar || user.avatar_url;
+    const container = document.getElementById('profile-container');
+    const zones = ['norte', 'sur', 'este', 'oeste', 'centro'];
+
+    container.innerHTML = `
         <div class="card" style="max-width: 600px; margin: 0 auto;">
             <h2 style="margin-bottom: 20px;">✏️ Editar Perfil</h2>
             <form id="profile-edit-form" onsubmit="app.saveProfile(event)">
@@ -3039,121 +3043,121 @@ const app = {
             </form>
         </div>
     `;
-    };
+};
 
-    // Nueva función para previsualizar galería
-    app.previewGallery = function (input) {
-        const previewContainer = document.getElementById('new-gallery-preview');
-        previewContainer.innerHTML = ''; // Limpiar anteriores previews de esta selección
+// Nueva función para previsualizar galería
+app.previewGallery = function (input) {
+    const previewContainer = document.getElementById('new-gallery-preview');
+    previewContainer.innerHTML = ''; // Limpiar anteriores previews de esta selección
 
-        if (input.files && input.files.length > 0) {
-            Array.from(input.files).forEach(file => {
-                const reader = new FileReader();
-                reader.onload = function (e) {
-                    const div = document.createElement('div');
-                    div.style.position = 'relative';
-                    div.style.aspectRatio = '1';
+    if (input.files && input.files.length > 0) {
+        Array.from(input.files).forEach(file => {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const div = document.createElement('div');
+                div.style.position = 'relative';
+                div.style.aspectRatio = '1';
 
-                    div.innerHTML = `
+                div.innerHTML = `
                     <div style="position: absolute; top: 0; left: 0; background: #4CAF50; color: white; padding: 2px 6px; font-size: 10px; border-radius: 0 0 4px 0; z-index: 2;">NUEVA</div>
                     <img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 2px solid #4CAF50; opacity: 0.8;">
                 `;
-                    previewContainer.appendChild(div);
-                }
-                reader.readAsDataURL(file);
-            });
+                previewContainer.appendChild(div);
+            }
+            reader.readAsDataURL(file);
+        });
+    }
+};
+
+// ===== PROFILE FIX V4 (Header Refresh) =====
+
+app.saveProfile = async function (event) {
+    event.preventDefault();
+    const form = event.target;
+    const user = AppState.currentUser;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Guardando...';
+
+    try {
+        console.log('🏁 Iniciando guardado de perfil (V4)...');
+
+        // 1. Recoger datos básicos
+        const selectedZones = Array.from(form.querySelectorAll('input[name="searchZones"]:checked'))
+            .map(cb => cb.value);
+
+        let updates = {
+            bio: form.bio.value,
+            age: form.age.value ? parseInt(form.age.value) : null,
+            search_zones: selectedZones
+        };
+
+        // 2. Subir avatar (CON EXTENSIÓN)
+        const avatarFile = form.avatarFile.files[0];
+        if (avatarFile) {
+            const ext = avatarFile.name.split('.').pop();
+            const path = `${user.id}/${Date.now()}_avatar.${ext}`;
+            try {
+                const avatarUrl = await SupabaseService.uploadFile('avatars', path, avatarFile);
+                updates.avatar_url = avatarUrl;
+            } catch (uploadErr) {
+                console.error('Error subida avatar:', uploadErr);
+                alert('Error subiendo avatar: ' + uploadErr.message);
+                throw uploadErr;
+            }
         }
-    };
 
-    // ===== PROFILE FIX V4 (Header Refresh) =====
+        // 3. Subir galería (CON EXTENSIÓN)
+        const galleryFiles = form.galleryFiles.files;
+        if (galleryFiles.length > 0) {
+            let currentGallery = user.gallery || [];
+            if (typeof currentGallery === 'string') currentGallery = JSON.parse(currentGallery);
 
-    app.saveProfile = async function (event) {
-        event.preventDefault();
-        const form = event.target;
-        const user = AppState.currentUser;
-        const submitBtn = form.querySelector('button[type="submit"]');
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Guardando...';
-
-        try {
-            console.log('🏁 Iniciando guardado de perfil (V4)...');
-
-            // 1. Recoger datos básicos
-            const selectedZones = Array.from(form.querySelectorAll('input[name="searchZones"]:checked'))
-                .map(cb => cb.value);
-
-            let updates = {
-                bio: form.bio.value,
-                age: form.age.value ? parseInt(form.age.value) : null,
-                search_zones: selectedZones
-            };
-
-            // 2. Subir avatar (CON EXTENSIÓN)
-            const avatarFile = form.avatarFile.files[0];
-            if (avatarFile) {
-                const ext = avatarFile.name.split('.').pop();
-                const path = `${user.id}/${Date.now()}_avatar.${ext}`;
+            for (let i = 0; i < galleryFiles.length; i++) {
+                const file = galleryFiles[i];
+                const ext = file.name.split('.').pop();
+                const path = `${user.id}/${Date.now()}_gallery_${i}.${ext}`;
                 try {
-                    const avatarUrl = await SupabaseService.uploadFile('avatars', path, avatarFile);
-                    updates.avatar_url = avatarUrl;
-                } catch (uploadErr) {
-                    console.error('Error subida avatar:', uploadErr);
-                    alert('Error subiendo avatar: ' + uploadErr.message);
-                    throw uploadErr;
+                    const url = await SupabaseService.uploadFile('gallery', path, file);
+                    currentGallery.push(url);
+                } catch (galleryErr) {
+                    console.error('Error subida galería:', galleryErr);
+                    alert('Error subiendo foto: ' + galleryErr.message);
+                    throw galleryErr;
                 }
             }
-
-            // 3. Subir galería (CON EXTENSIÓN)
-            const galleryFiles = form.galleryFiles.files;
-            if (galleryFiles.length > 0) {
-                let currentGallery = user.gallery || [];
-                if (typeof currentGallery === 'string') currentGallery = JSON.parse(currentGallery);
-
-                for (let i = 0; i < galleryFiles.length; i++) {
-                    const file = galleryFiles[i];
-                    const ext = file.name.split('.').pop();
-                    const path = `${user.id}/${Date.now()}_gallery_${i}.${ext}`;
-                    try {
-                        const url = await SupabaseService.uploadFile('gallery', path, file);
-                        currentGallery.push(url);
-                    } catch (galleryErr) {
-                        console.error('Error subida galería:', galleryErr);
-                        alert('Error subiendo foto: ' + galleryErr.message);
-                        throw galleryErr;
-                    }
-                }
-                updates.gallery = currentGallery;
-            }
-
-            // 4. Actualizar usuario
-            await SupabaseService.updateUser(user.id, updates);
-
-            // 5. Refrescar datos locales
-            const updatedProfile = await SupabaseService.getCurrentUser();
-            if (updatedProfile) {
-                updatedProfile.avatar = updatedProfile.avatar_url || updatedProfile.avatar;
-            }
-            AppState.currentUser = updatedProfile;
-
-            // 6. ACTUALIZAR UI GLOBAL (Sidebar/Header)
-            if (typeof app.updateHeader === 'function') {
-                app.updateHeader();
-            } else {
-                // Fallback manual si updateHeader no existe o falla scope
-                const headerAvatar = document.getElementById('header-avatar');
-                if (headerAvatar && updatedProfile.avatar) {
-                    headerAvatar.innerHTML = `<img src="${updatedProfile.avatar}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
-                }
-            }
-
-            this.loadProfileView();
-            this.showToast('Perfil actualizado correctamente', 'success');
-
-        } catch (error) {
-            console.error('Error FATAL guardando perfil:', error);
-            alert('ERROR: ' + (error.message || error));
-            this.showToast('Error: ' + (error.message || 'No se pudo guardar'), 'error');
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Guardar Cambios';
+            updates.gallery = currentGallery;
         }
-    };
+
+        // 4. Actualizar usuario
+        await SupabaseService.updateUser(user.id, updates);
+
+        // 5. Refrescar datos locales
+        const updatedProfile = await SupabaseService.getCurrentUser();
+        if (updatedProfile) {
+            updatedProfile.avatar = updatedProfile.avatar_url || updatedProfile.avatar;
+        }
+        AppState.currentUser = updatedProfile;
+
+        // 6. ACTUALIZAR UI GLOBAL (Sidebar/Header)
+        if (typeof app.updateHeader === 'function') {
+            app.updateHeader();
+        } else {
+            // Fallback manual si updateHeader no existe o falla scope
+            const headerAvatar = document.getElementById('header-avatar');
+            if (headerAvatar && updatedProfile.avatar) {
+                headerAvatar.innerHTML = `<img src="${updatedProfile.avatar}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+            }
+        }
+
+        this.loadProfileView();
+        this.showToast('Perfil actualizado correctamente', 'success');
+
+    } catch (error) {
+        console.error('Error FATAL guardando perfil:', error);
+        alert('ERROR: ' + (error.message || error));
+        this.showToast('Error: ' + (error.message || 'No se pudo guardar'), 'error');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Guardar Cambios';
+    }
+};
