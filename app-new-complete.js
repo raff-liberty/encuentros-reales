@@ -344,12 +344,15 @@ const app = {
 
             this.updateNavCounts();
 
+            // MODIFICACIÓN: Desactivado para evitar recargas automáticas molestas.
+            /*
             // Si estamos en la vista de explorar o postulaciones, refrescar para mostrar cambios
             if (AppState.currentView === 'explore') {
                 this.loadExploreView();
             } else if (AppState.currentView === 'applications') {
                 this.loadApplicationsView();
             }
+            */
         } catch (error) {
             console.error('Error refreshing applications:', error);
         }
@@ -402,6 +405,13 @@ const app = {
             panel.classList.remove('hidden');
         } else {
             panel.classList.add('hidden');
+        }
+    },
+
+    closeRateModal() {
+        const modal = document.getElementById('rate-modal');
+        if (modal) {
+            modal.classList.remove('active');
         }
     },
 
