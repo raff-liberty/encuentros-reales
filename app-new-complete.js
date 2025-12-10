@@ -807,8 +807,11 @@ const app = {
             container.innerHTML = '<div class="loader">Cargando postulaciones...</div>';
 
             const applications = await SupabaseService.getApplicationsByUser(user.id);
+            this.myApplications = applications; // Guardar para filtrado
+
             const reviews = await SupabaseService.getReviewsByReviewer(user.id);
-            const reviewedEventIds = new Set(reviews.map(r => r.event_id));
+            // Guardar set de reviews para uso en renderizado
+            this.myReviewedEventIds = new Set(reviews.map(r => r.event_id));
 
             if (applications.length === 0) {
                 container.innerHTML = `
@@ -820,43 +823,29 @@ const app = {
                         </p>
                         <button class="btn btn-primary mt-md" onclick="app.showView('explore')">Explorar eventos</button>
                     </div>
-        `;
+                `;
                 return;
             }
 
-            // Agrupar por estado
-            const pending = applications.filter(app => app.status === 'PENDIENTE');
-            const accepted = applications.filter(app => app.status === 'ACEPTADO');
-            const rejected = applications.filter(app => app.status === 'RECHAZADO');
-
+            // Renderizar estructura: Filtros + Contenedor de Lista
             container.innerHTML = `
-                ${accepted.length > 0 ? `
-                    <h3 style="margin-bottom: var(--spacing-md); color: var(--color-success);">
-                        ✅ Aceptadas (${accepted.length})
-                    </h3>
-                    ${accepted.map(app => this.renderApplicationCard(app, 'ACEPTADO', reviewedEventIds.has(app.event.id))).join('')}
-                ` : ''
-                }
-                
-                ${pending.length > 0 ? `
-                    <h3 style="margin-bottom: var(--spacing-md); margin-top: var(--spacing-xl); color: var(--color-warning);">
-                        ⏳ Pendientes (${pending.length})
-                    </h3>
-                    ${pending.map(app => this.renderApplicationCard(app, 'PENDIENTE', reviewedEventIds.has(app.event.id))).join('')}
-                ` : ''
-                }
-                
-                ${rejected.length > 0 ? `
-                    <h3 style="margin-bottom: var(--spacing-md); margin-top: var(--spacing-xl); color: var(--color-error);">
-                        ❌ Rechazadas (${rejected.length})
-                    </h3>
-                    ${rejected.map(app => this.renderApplicationCard(app, 'RECHAZADO')).join('')}
-                ` : ''
-                }
-`;
+                <div class="filters-container" style="display: flex; gap: 10px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 5px;">
+                    <button class="btn btn-small btn-filter active" onclick="app.filterApplications('TODAS', this)" style="background: var(--color-accent); border: none;">Todas (${applications.length})</button>
+                    <button class="btn btn-small btn-filter" onclick="app.filterApplications('PENDIENTE', this)">Pendientes</button>
+                    <button class="btn btn-small btn-filter" onclick="app.filterApplications('ACEPTADO', this)">Aceptadas</button>
+                    <button class="btn btn-small btn-filter" onclick="app.filterApplications('FINALIZADO', this)">Finalizados</button>
+                    <button class="btn btn-small btn-filter" onclick="app.filterApplications('CERRADO', this)">Cerradas/Rechazadas</button>
+                </div>
+                <div id="applications-list-content"></div>
+            `;
 
-            // Actualizar contador
+            // Cargar vista inicial
+            // Nota: usamos setTimeout para asegurar que el DOM se pintó antes de filtrar
+            setTimeout(() => this.filterApplications('TODAS'), 0);
+
+            // Actualizar contador global
             document.getElementById('applications-count').textContent = applications.length;
+
         } catch (error) {
             console.error('Error cargando postulaciones:', error);
             container.innerHTML = `
@@ -869,6 +858,62 @@ const app = {
                 </div>
             `;
         }
+    },
+
+    filterApplications(filterType, btnElement = null) {
+        // Actualizar estilos de botones
+        if (btnElement) {
+            document.querySelectorAll('.btn-filter').forEach(btn => {
+                btn.style.background = 'rgba(255, 255, 255, 0.1)';
+                btn.classList.remove('active');
+            });
+            btnElement.style.background = 'var(--color-accent)';
+            btnElement.classList.add('active');
+        }
+
+        const container = document.getElementById('applications-list-content');
+        if (!container) return;
+
+        let filtered = [];
+        const apps = this.myApplications || [];
+
+        switch (filterType) {
+            case 'PENDIENTE':
+                filtered = apps.filter(app => app.status === 'PENDIENTE');
+                break;
+            case 'ACEPTADO':
+                // Aceptados activos (no finalizados)
+                filtered = apps.filter(app => app.status === 'ACEPTADO' && app.event.status !== 'FINALIZADO');
+                break;
+            case 'FINALIZADO':
+                // Eventos finalizados (se muestran si la postulación fue aceptada, o incluso si fue pendiente/rechazada si así se desea, 
+                // pero lo lógico es mostrar en qué eventos participaste. 
+                // El usuario dijo "filtar por los 4 eventos disponible", asumo que quiere ver 'FINALIZADOS' como categoría.
+                // Mostraré todos los finalizados donde haya interacción.)
+                filtered = apps.filter(app => app.event.status === 'FINALIZADO');
+                break;
+            case 'CERRADO':
+                // Rechazados o Cancelados
+                filtered = apps.filter(app => app.status === 'RECHAZADO' || app.status === 'CANCELADO');
+                break;
+            case 'TODAS':
+            default:
+                filtered = apps;
+                break;
+        }
+
+        if (filtered.length === 0) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: var(--color-text-tertiary);">
+                    <p>No hay postulaciones en esta categoría</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = filtered.map(app =>
+            this.renderApplicationCard(app, app.status, this.myReviewedEventIds ? this.myReviewedEventIds.has(app.event.id) : false)
+        ).join('');
     },
 
     renderApplicationCard(application, status, hasVoted = false) {
