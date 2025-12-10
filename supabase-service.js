@@ -198,7 +198,10 @@ const SupabaseService = {
     async getEventsByCreator(userId) {
         const { data, error } = await supabaseClient
             .from('events')
-            .select('*')
+            .select(`
+                *,
+                applicants:applications(*)
+            `)
             .eq('organizer_id', userId)
             .order('created_at', { ascending: false });
 
@@ -308,15 +311,21 @@ const SupabaseService = {
             .eq('id', eventId)
             .single();
 
-        // 3. Crear notificación
+        // 3. Crear notificación (no fallar si esto falla)
         if (event) {
-            await this.createNotification({
-                user_id: event.organizer_id,
-                type: 'NEW_APPLICATION',
-                title: '🔔 Nueva candidatura',
-                message: `Alguien se ha postulado a tu evento "${event.title}"`,
-                related_id: eventId
-            });
+            try {
+                await this.createNotification({
+                    user_id: event.organizer_id,
+                    type: 'NEW_APPLICATION',
+                    title: '🔔 Nueva candidatura',
+                    message: `Alguien se ha postulado a tu evento "${event.title}"`,
+                    related_id: eventId
+                });
+                console.log('✅ Notificación creada correctamente');
+            } catch (notifError) {
+                console.error('❌ Error creando notificación:', notifError);
+                // No lanzar el error, la aplicación ya se creó exitosamente
+            }
         }
 
         return data;
