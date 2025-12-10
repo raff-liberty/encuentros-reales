@@ -289,12 +289,28 @@ window.submitRatings = async function (eventId) {
     try {
         if (ratings.length > 0) {
             await SupabaseService.submitEventRatings(ratings);
+            app.showToast('¡Valoración guardada!', 'success');
         }
 
-        await SupabaseService.finalizeEvent(eventId);
+        // SOLO si el que envía es el organizador del evento, finalizamos el evento.
+        // Verificamos si estamos en el "modo organizador" (cuando se pulsa Finalizar)
+        // O si simplemente es un participante valorando.
+        // HACK: Si el modal tiene título "Valorar participantes", es el organizador.
+        // Si no, asumimos que es participante -> organizador.
+        // MEJOR: Comprobar ownership del evento.
+
+        const { data: event } = await SupabaseService.getEventById(eventId);
+        if (event && event.organizer_id === reviewerId) {
+            await SupabaseService.finalizeEvent(eventId);
+            app.showToast('¡Evento finalizado y valoraciones guardadas!', 'success');
+            app.loadMyEventsView(); // Refresh para organizador
+        } else {
+            // Es participante
+            // Refrescar vista de postulaciones si es necesario
+            if (app.loadApplicationsView) app.loadApplicationsView();
+        }
+
         document.getElementById('rating-modal').remove();
-        app.showToast('¡Evento finalizado y valoraciones guardadas!', 'success');
-        app.loadMyEventsView();
 
     } catch (error) {
         console.error(error);

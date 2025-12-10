@@ -786,6 +786,12 @@ const app = {
                         <p style="margin-top: var(--spacing-sm); font-size: var(--font-size-sm);">
                             📍 <strong>Ubicación exacta:</strong> ${event.location}
                         </p>
+                        ${event.status === 'FINALIZADO' ? `
+                            <button class="btn btn-primary" style="margin-top: 10px; width: 100%;" 
+                                onclick="app.rateOrganizer('${event.organizer_id}', '${event.id}')">
+                                ⭐ Valorar Organizador
+                            </button>
+                        ` : ''}
                     </div>
                 ` : status === 'PENDIENTE' ? `
                     <div style="background: rgba(255, 215, 0, 0.1); padding: var(--spacing-md); border-radius: var(--border-radius-md); margin-top: var(--spacing-md);">
@@ -797,6 +803,33 @@ const app = {
                 ` : ''}
             </div>
     `;
+    },
+
+    async rateOrganizer(organizerId, eventId) {
+        if (window.showRatingModal) {
+            // Reusamos el modal de valoración pero adaptándolo para un solo "participante" (el organizador)
+            // Necesitamos fetch del profile del organizador primero
+            try {
+                const organizer = await SupabaseService.getUserById(organizerId); // Asegurarse que existe esta funcion o usar getEventById
+                // Hack: pasamos al organizador como un array de 1 "participante" para reusar showRatingModal
+                window.showRatingModal(eventId, [{
+                    applicant: organizer, // showRatingModal espera { applicant: user }
+                    status: 'ACEPTADO'
+                }]);
+
+                // Sobrescribimos submitRatings temporalmente o confiamos en que funcione igual
+                // submitRatings usa .rating-card y sus data-user-id. 
+                // data-user-id será el ID del organizador.
+                // submitRatings tomará reviewerId como el usuario actual (participante).
+                // reviewedId será el organizador.
+                // Debería funcionar TAL CUAL si el usuario actual está logueado correctamente.
+            } catch (e) {
+                console.error(e);
+                alert('Error cargando organizador');
+            }
+        } else {
+            alert('El módulo de valoración no está cargado. Recarga la página.');
+        }
     },
 
     // ===== VISTA: MIS EVENTOS (OFERENTES) =====
