@@ -171,6 +171,69 @@ const app = {
         this.registrationState.step = step;
     },
 
+    // Textos de Normas
+    roleRules: {
+        OFERENTE: `
+            <h4>Responsabilidades de la Organizadora</h4>
+            <ul>
+                <li><strong>Crear eventos reales</strong>, con intención de realizarlos.</li>
+                <li><strong>Definir el nivel del evento</strong> (Tradicional, Sumiso, Estructurado).</li>
+                <li><strong>Describir el evento con claridad</strong>, incluyendo reglas básicas.</li>
+                <li><strong>Aceptar únicamente a participantes</strong> con los que realmente desee coincidir.</li>
+                <li><strong>Respetar el compromiso adquirido</strong> al aceptar postulaciones.</li>
+                <li><strong>Ser objetiva y honesta</strong> en sus valoraciones posteriores.</li>
+                <li><strong>Reportar comportamientos inapropiados</strong> o perfiles dudosos.</li>
+                <li><strong>Respetar límites</strong> y consentimientos definidos.</li>
+            </ul>
+
+            <h4>Derechos de la Organizadora</h4>
+            <ul>
+                <li>Ver perfiles verificados y reputación real de los buscadores.</li>
+                <li>Elegir libremente a quién aceptar o rechazar.</li>
+                <li>Recibir protección frente a perfiles falsos o usuarios fantasma.</li>
+                <li>Acceder a medios de contacto solo de usuarios aceptados.</li>
+                <li>Cerrar postulaciones cuando considere oportuno.</li>
+                <li>Bloquear o reportar a quien incumpla normas o expectativas mínimas.</li>
+            </ul>
+
+            <h4>Expectativas que debe conocer</h4>
+            <ul>
+                <li>Aceptar a un candidato implica revelación de datos y compromiso real.</li>
+                <li>Sus valoraciones afectan directamente al ecosistema.</li>
+                <li>La plataforma la apoya con control, trazabilidad y admin detrás.</li>
+            </ul>
+        `,
+        BUSCADOR: `
+            <h4>Responsabilidades del Buscador</h4>
+            <ul>
+                <li><strong>Postularse únicamente con intención real</strong> de asistir.</li>
+                <li><strong>Presentar un perfil auténtico</strong>, con fotos reales y verificables.</li>
+                <li><strong>Mantener buen comportamiento</strong> antes, durante y después del encuentro.</li>
+                <li><strong>Cumplir con la dinámica del evento</strong> según el nivel elegido por la organizadora.</li>
+                <li><strong>Avisar si no puede asistir</strong> (evitar reputación negativa).</li>
+                <li><strong>Respetar todas las reglas</strong> del evento y los límites de la organizadora.</li>
+                <li><strong>No compartir datos sensibles</strong> fuera del contexto autorizado.</li>
+            </ul>
+
+            <h4>Derechos del Buscador</h4>
+            <ul>
+                <li>Ser evaluado de forma justa y pública.</li>
+                <li>Ser seleccionado o rechazado sin discriminación abusiva.</li>
+                <li>Tener control sobre su información personal (solo visible tras aceptación).</li>
+                <li>Reportar comportamientos inapropiados.</li>
+                <li>Acceder a eventos reales y organizadoras verificadas.</li>
+            </ul>
+
+            <h4>Expectativas que debe conocer</h4>
+            <ul>
+                <li>Su reputación es visible y acumulativa.</li>
+                <li>Comportarse como “fantasma” afecta duramente a su perfil.</li>
+                <li>Fotos irreales o engaños → rechazo inmediato + riesgo de expulsión.</li>
+                <li>La plataforma es seria: no hay roleplay ni simulación.</li>
+            </ul>
+        `
+    },
+
     selectRole(role) {
         this.registrationState.data.role = role;
         document.getElementById('reg-role').value = role;
@@ -182,8 +245,24 @@ const app = {
         if (role === 'OFERENTE') cards[0].classList.add('selected');
         else cards[1].classList.add('selected');
 
-        // Auto move next after brief delay
-        setTimeout(() => this.showWizardStep(2), 300);
+        // Show Rules Step instead of going directly to step 2
+        this.showRulesStep(role);
+    },
+
+    showRulesStep(role) {
+        const content = this.roleRules[role];
+        document.getElementById('rules-content').innerHTML = content;
+        document.getElementById('rules-title').textContent = role === 'OFERENTE' ? 'Normas para Organizadoras' : 'Normas para Buscadores';
+
+        // Hide Step 1, Show Rules
+        document.getElementById('reg-step-1').classList.remove('active');
+        document.getElementById('reg-step-rules').classList.add('active');
+    },
+
+    acceptRules() {
+        // Move to Step 2
+        document.getElementById('reg-step-rules').classList.remove('active');
+        this.showWizardStep(2);
     },
 
     prevStep() {
