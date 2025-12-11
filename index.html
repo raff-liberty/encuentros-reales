@@ -638,12 +638,47 @@
                         <textarea name="bio" class="form-input" rows="3"></textarea>
                     </div>
 
+                    <!-- MODERACIÓN DE FOTOS -->
+                    <div class="form-group">
+                        <label class="form-label">Moderación de Fotos</label>
+                        <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px;">
+                            <p style="font-size: 0.9em; margin-bottom: 5px;">Avatar:</p>
+                            <div id="admin-edit-avatar-container"
+                                style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                <!-- Se llena dinámicamente -->
+                            </div>
+
+                            <p style="font-size: 0.9em; margin-bottom: 5px;">Galería:</p>
+                            <div id="admin-edit-gallery-container" style="display: flex; flex-wrap: wrap; gap: 10px;">
+                                <!-- Se llena dinámicamente -->
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="form-actions">
                         <button type="button" class="btn btn-secondary"
                             onclick="document.getElementById('admin-edit-user-modal').classList.remove('active')">Cancelar</button>
                         <button type="submit" class="btn btn-primary">Guardar Cambios</button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Participantes del Evento (Admin) -->
+    <div id="admin-event-participants-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Historial de Participantes</h2>
+                <button class="close-btn"
+                    onclick="document.getElementById('admin-event-participants-modal').classList.remove('active')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <h4 id="admin-event-title-participants" style="margin-bottom: 15px; color: var(--color-accent);"></h4>
+                <div id="admin-event-participants-list" style="display: flex; flex-direction: column; gap: 10px;">
+                    <!-- Lista dinámica -->
+                    <p style="text-align: center;">Cargando...</p>
+                </div>
             </div>
         </div>
     </div>
