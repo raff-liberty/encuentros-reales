@@ -3,42 +3,27 @@ const SupabaseService = {
     async signUp(email, password, userData) {
         if (!supabaseClient) throw new Error('Supabase no está configurado');
 
+        // El trigger en la base de datos creará automáticamente el perfil
+        // en public.users cuando se cree el usuario en auth.users
         const { data, error } = await supabaseClient.auth.signUp({
             email,
             password,
             options: {
-                data: userData // username, role, etc.
+                data: {
+                    username: userData.username,
+                    full_name: userData.full_name,
+                    role: userData.role,
+                    birth_date: userData.birth_date,
+                    province: userData.province,
+                    verified: userData.verified || 'PENDIENTE',
+                    verification_photos: userData.verification_photos || {}
+                }
             }
         });
 
         if (error) throw error;
 
-        // Crear perfil de usuario en la tabla 'users'
-        if (data.user) {
-            const profileData = {
-                id: data.user.id,
-                email: email,
-                username: userData.username,
-                full_name: userData.full_name,
-                role: userData.role,
-                birth_date: userData.birth_date,
-                province: userData.province,
-                verified: userData.verified || 'PENDIENTE',
-                verification_photos: userData.verification_photos || {},
-                created_at: new Date().toISOString()
-            };
-
-            const { error: profileError } = await supabaseClient
-                .from('users')
-                .insert([profileData]);
-
-            if (profileError) {
-                console.error('Error creando perfil:', profileError);
-                // Lanzar error para que el usuario sepa que falló
-                throw new Error(`Error creando perfil: ${profileError.message}`);
-            }
-        }
-
+        // El perfil ya fue creado por el trigger, no necesitamos hacerlo aquí
         return data.user;
     },
 
