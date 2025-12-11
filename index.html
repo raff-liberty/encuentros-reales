@@ -282,6 +282,7 @@
 
             <!-- WIZARD PASO 1: PRESENTACIÓN Y ROL -->
             <div id="reg-step-1" class="wizard-step">
+                <!-- ... content of step 1 ... -->
                 <div class="presentation-text">
                     <h3>Nuestra Misión</h3>
                     <p>Encuentros Reales es un espacio seguro y verificado para adultos que buscan conexiones
@@ -314,6 +315,20 @@
 
                 <div class="wizard-actions">
                     <button type="button" class="btn btn-text" onclick="app.cancelRegistration()">Cancelar</button>
+                </div>
+            </div>
+
+            <!-- Step Rules: Normas y Responsabilidades (Nuevo) -->
+            <div class="wizard-step" id="reg-step-rules">
+                <h3 id="rules-title">Normas de la Comunidad</h3>
+                <div class="rules-container" id="rules-content"
+                    style="max-height: 400px; overflow-y: auto; text-align: left; margin: 20px 0; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                    <!-- Content injected by JS -->
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="app.showWizardStep(1)">Atrás</button>
+                    <button type="button" class="btn btn-primary" onclick="app.acceptRules()">He leído y acepto las
+                        normas</button>
                 </div>
             </div>
 
