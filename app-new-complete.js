@@ -832,7 +832,8 @@ const app = {
     async loadAdminStats() {
         try {
             const allUsers = await SupabaseService.getAllUsers();
-            const allEvents = await SupabaseService.getAllEvents();
+            this.allUsersCache = allUsers; // Cache for edit modal
+            const allEvents = await SupabaseService.getAdminAllEvents();
 
             // Buscar o crear contenedor de estadísticas
             let statsContainer = document.getElementById('admin-stats-section');
@@ -886,9 +887,10 @@ const app = {
         try {
             if (tabName === 'users') {
                 const users = await SupabaseService.getAllUsers();
+                this.allUsersCache = users; // Cache
                 content.innerHTML = this.renderAdminUsersTable(users);
             } else if (tabName === 'events') {
-                const events = await SupabaseService.getAllEvents();
+                const events = await SupabaseService.getAdminAllEvents();
                 content.innerHTML = this.renderAdminEventsTable(events);
             }
         } catch (error) {
@@ -915,14 +917,20 @@ const app = {
                         <tbody>
                             ${users.map(u => `
                                 <tr style="border-bottom: 1px solid var(--color-border);">
-                                    <td style="padding: 10px;">${u.username}</td>
+                                    <td style="padding: 10px;">
+                                        <div style="font-weight: bold;">${u.username}</div>
+                                        <div style="font-size: 0.8em; opacity: 0.7;">${u.full_name || ''}</div>
+                                    </td>
                                     <td style="padding: 10px;">${u.email}</td>
                                     <td style="padding: 10px;">
                                         <span class="badge ${u.role === 'ADMIN' ? 'badge-primary' : 'badge-secondary'}">${u.role}</span>
                                     </td>
-                                    <td style="padding: 10px;">${u.verified || 'No verificado'}</td>
                                     <td style="padding: 10px;">
-                                        <button class="btn btn-secondary btn-small" onclick="app.deleteUser('${u.id}')">🗑️</button>
+                                        <span class="badge badge-${u.verified === 'VERIFICADO' ? 'success' : (u.verified === 'RECHAZADO' ? 'error' : 'secondary')}">${u.verified || 'PENDIENTE'}</span>
+                                    </td>
+                                    <td style="padding: 10px;">
+                                        <button class="btn btn-secondary btn-small" title="Editar" onclick="app.openEditUserModal('${u.id}')">✏️</button>
+                                        <button class="btn btn-secondary btn-small" title="Eliminar" onclick="app.deleteUser('${u.id}')">🗑️</button>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -933,15 +941,35 @@ const app = {
         `;
     },
 
-    renderAdminEventsTable(events) {
+    renderAdminEventsTable(events, filter = 'ALL') {
+        const filteredEvents = filter === 'ALL'
+            ? events
+            : events.filter(e => e.status === filter);
+
+        // Colores para estados
+        const statusColors = {
+            'ACTIVO': 'success',
+            'FINALIZADO': 'primary',
+            'CANCELADO': 'error',
+            'CERRADO': 'secondary'
+        };
+
         return `
             <div class="card">
-                <h3>Gestión de Eventos</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; mb-4">
+                    <h3>Gestión de Eventos (${filteredEvents.length})</h3>
+                    <div class="tabs small-tabs">
+                        <button class="btn btn-small ${filter === 'ALL' ? 'btn-primary' : 'btn-secondary'}" onclick="app.filterAdminEvents('ALL')">Todos</button>
+                        <button class="btn btn-small ${filter === 'ACTIVO' ? 'btn-primary' : 'btn-secondary'}" onclick="app.filterAdminEvents('ACTIVO')">Activos</button>
+                        <button class="btn btn-small ${filter === 'FINALIZADO' ? 'btn-primary' : 'btn-secondary'}" onclick="app.filterAdminEvents('FINALIZADO')">Finalizados</button>
+                        <button class="btn btn-small ${filter === 'CANCELADO' ? 'btn-primary' : 'btn-secondary'}" onclick="app.filterAdminEvents('CANCELADO')">Cancelados</button>
+                    </div>
+                </div>
                 <div class="table-responsive">
                     <table class="table" style="width: 100%; border-collapse: collapse;">
                         <thead>
                             <tr style="border-bottom: 1px solid var(--color-border);">
-                                <th style="padding: 10px; text-align: left;">Título</th>
+                                <th style="padding: 10px; text-align: left;">Evento</th>
                                 <th style="padding: 10px; text-align: left;">Organizador</th>
                                 <th style="padding: 10px; text-align: left;">Estado</th>
                                 <th style="padding: 10px; text-align: left;">Fecha</th>
@@ -949,14 +977,24 @@ const app = {
                             </tr>
                         </thead>
                         <tbody>
-                            ${events.map(e => `
+                            ${filteredEvents.map(e => `
                                 <tr style="border-bottom: 1px solid var(--color-border);">
-                                    <td style="padding: 10px;">${e.title}</td>
-                                    <td style="padding: 10px;">${e.organizer?.username || 'N/A'}</td>
-                                    <td style="padding: 10px;">${e.status}</td>
-                                    <td style="padding: 10px;">${e.date}</td>
                                     <td style="padding: 10px;">
-                                        <button class="btn btn-secondary btn-small" onclick="app.deleteEvent('${e.id}')">🗑️</button>
+                                        <strong>${e.title}</strong>
+                                        <div style="font-size: 0.8em; opacity: 0.7;">${e.location}</div>
+                                    </td>
+                                    <td style="padding: 10px;">
+                                        <div style="display: flex; align-items: center; gap: 5px;">
+                                            <span style="font-size: 0.9em;">${e.organizer?.username || 'N/A'}</span>
+                                        </div>
+                                    </td>
+                                    <td style="padding: 10px;">
+                                        <span class="badge badge-${statusColors[e.status] || 'secondary'}">${e.status}</span>
+                                    </td>
+                                    <td style="padding: 10px;">${new Date(e.date).toLocaleDateString()}</td>
+                                    <td style="padding: 10px;">
+                                        <button class="btn btn-secondary btn-small" title="Eliminar" onclick="app.deleteEvent('${e.id}')">🗑️</button>
+                                        ${e.status === 'ACTIVO' ? `<button class="btn btn-error btn-small" title="Cancelar" onclick="app.cancelEvent('${e.id}')">🚫</button>` : ''}
                                     </td>
                                 </tr>
                             `).join('')}
@@ -965,6 +1003,20 @@ const app = {
                 </div>
             </div>
         `;
+    },
+
+    async filterAdminEvents(filter) {
+        try {
+            const events = await SupabaseService.getAdminAllEvents();
+            // Guardamos filtro en variable global temporal o re-renderizamos directo
+            // Para simplificar, asumimos que re-renderizamos el contenido
+            const content = document.getElementById('admin-tab-content');
+            if (content) {
+                content.innerHTML = this.renderAdminEventsTable(events, filter);
+            }
+        } catch (error) {
+            console.error('Error filtering events:', error);
+        }
     },
 
     calculateAge(birthDate) {
@@ -2292,6 +2344,61 @@ const app = {
         modal.classList.toggle('active');
     },
 
+    // ===== GESTIÓN DE USUARIOS (ADMIN) =====
+    openEditUserModal(userId) {
+        const user = this.allUsersCache.find(u => u.id === userId);
+        if (!user) return;
+
+        const modal = document.getElementById('admin-edit-user-modal');
+        const form = document.getElementById('admin-user-edit-form');
+
+        // Popular formulario
+        form.userId.value = user.id;
+        form.username.value = user.username || '';
+        form.email.value = user.email || '';
+        form.role.value = user.role || 'BUSCADOR';
+        form.verified.value = user.verified || 'PENDIENTE';
+        form.bio.value = user.bio || '';
+
+        modal.classList.add('active');
+    },
+
+    async saveUserEdits(event) {
+        event.preventDefault();
+        const form = event.target;
+        const userId = form.userId.value;
+
+        const updates = {
+            username: form.username.value,
+            role: form.role.value,
+            verified: form.verified.value,
+            bio: form.bio.value
+        };
+
+        try {
+            // Si cambiamos a VERIFICADO desde el modal, también deberíamos limpiar fotos?
+            // Por consistencia, podríamos hacerlo, pero el servicio updateUser es genérico.
+            // Si se requiere borrar fotos, el admin debería usar los botones de aprobación, 
+            // pero si lo hace por aquí, asumimos que sabe lo que hace.
+
+            await SupabaseService.updateUser(userId, updates);
+
+            this.showToast('Usuario actualizado correctamente', 'success');
+            document.getElementById('admin-edit-user-modal').classList.remove('active');
+
+            // Recargar lista si estamos en admin
+            this.switchAdminTab('users');
+
+            // Si el usuario editado es el actual, actualizar estado local?
+            if (this.currentUser && this.currentUser.id === userId) {
+                // Opcional: recargar perfil propio
+            }
+        } catch (error) {
+            console.error('Error updating user:', error);
+            this.showToast('Error actualizando usuario: ' + error.message, 'error');
+        }
+    },
+
     handleImageUpload(type, input) {
         if (input.files && input.files[0]) {
             const reader = new FileReader();
@@ -2977,18 +3084,44 @@ const app = {
         modal.classList.add('active');
     },
 
-    deleteUser(userId) {
+    async deleteUser(userId) {
         if (!confirm('¿Seguro que quieres eliminar este usuario?')) return;
-        DataService.deleteUser(userId);
-        this.switchAdminTab('users');
-        this.showToast('Usuario eliminado', 'success');
+        try {
+            await SupabaseService.deleteUser(userId);
+            this.showToast('Usuario eliminado', 'success');
+            // Recargar vista dependiendo de dónde estemos
+            const dashboard = document.getElementById('view-admin');
+            if (dashboard && dashboard.classList.contains('active')) {
+                this.loadAdminView();
+            }
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            this.showToast('Error eliminando usuario: ' + error.message, 'error');
+        }
     },
 
-    deleteEvent(eventId) {
+    async deleteEvent(eventId) {
         if (!confirm('¿Seguro que quieres eliminar este evento?')) return;
-        DataService.deleteEvent(eventId);
-        this.switchAdminTab('events');
-        this.showToast('Evento eliminado', 'success');
+        try {
+            await SupabaseService.deleteEvent(eventId);
+            this.showToast('Evento eliminado', 'success');
+            this.filterAdminEvents('ALL'); // Refresh list
+        } catch (error) {
+            console.error('Error deleting event:', error);
+            this.showToast('Error eliminando evento: ' + error.message, 'error');
+        }
+    },
+
+    async cancelEvent(eventId) {
+        if (!confirm('¿Seguro que quieres CANCELAR este evento?')) return;
+        try {
+            await SupabaseService.updateEvent(eventId, { status: 'CANCELADO' });
+            this.showToast('Evento cancelado', 'success');
+            this.filterAdminEvents('ALL'); // Refresh list
+        } catch (error) {
+            console.error('Error canceling event:', error);
+            this.showToast('Error cancelando evento: ' + error.message, 'error');
+        }
     },
 
     // ===== CREAR EVENTOS =====

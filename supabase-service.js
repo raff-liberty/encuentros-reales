@@ -218,6 +218,32 @@ const SupabaseService = {
         return data;
     },
 
+    // Función específica para Admin: Trae TODOS los eventos (no solo activos)
+    async getAdminAllEvents() {
+        const { data, error } = await supabaseClient
+            .from('events')
+            .select(`
+                *,
+                organizer:users (
+                    username,
+                    avatar_url
+                )
+            `)
+            .order('created_at', { ascending: false }); // Ordenar por creación
+
+        if (error) throw error;
+
+        // Normalizar avatar_url a avatar
+        if (data) {
+            data.forEach(event => {
+                if (event.organizer) {
+                    event.organizer.avatar = event.organizer.avatar_url || event.organizer.avatar;
+                }
+            });
+        }
+        return data;
+    },
+
     async getEventsByCreator(userId) {
         const { data, error } = await supabaseClient
             .from('events')
@@ -694,7 +720,23 @@ const SupabaseService = {
 
         if (error) throw error;
         return data;
-    }
+    },
+
+    async deleteUser(userId) {
+        // Primero eliminar de public.users
+        const { error } = await supabaseClient
+            .from('users')
+            .delete()
+            .eq('id', userId);
+
+        if (error) throw error;
+
+        // NOTA: Eliminar de auth.users requiere usar la API de administración de Supabase
+        // que no está disponible directamente en el cliente JS con anon key por seguridad.
+        // Pero con el trigger 'on delete cascade' (si está configurado) o manualmente desde el dashboard se limpia.
+        // Aquí solo borramos el perfil público.
+        return true;
+    },
 };
 
 window.SupabaseService = SupabaseService;
