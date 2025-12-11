@@ -14,20 +14,28 @@ const SupabaseService = {
         if (error) throw error;
 
         // Crear perfil de usuario en la tabla 'users'
-        // Nota: Esto también se puede manejar con Triggers en Supabase para más seguridad
         if (data.user) {
+            const profileData = {
+                id: data.user.id,
+                email: email,
+                username: userData.username,
+                full_name: userData.full_name,
+                role: userData.role,
+                birth_date: userData.birth_date,
+                province: userData.province,
+                verified: userData.verified || 'PENDIENTE',
+                verification_photos: userData.verification_photos || {},
+                created_at: new Date().toISOString()
+            };
+
             const { error: profileError } = await supabaseClient
                 .from('users')
-                .insert([{
-                    id: data.user.id,
-                    email: email, // Usamos el email del input
-                    ...userData,
-                    created_at: new Date()
-                }]);
+                .insert([profileData]);
 
             if (profileError) {
                 console.error('Error creando perfil:', profileError);
-                // No lanzamos error aquí para no bloquear el login, pero idealmente debería ser atómico
+                // Lanzar error para que el usuario sepa que falló
+                throw new Error(`Error creando perfil: ${profileError.message}`);
             }
         }
 
