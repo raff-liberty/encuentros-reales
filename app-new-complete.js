@@ -778,51 +778,193 @@ const app = {
     },
 
     async loadAdminView() {
-        const container = document.getElementById('verification-list');
-        container.innerHTML = '<tr><td colspan="6" class="text-center">Cargando solicitudes...</td></tr>';
+        // Cargar usuarios pendientes en la tabla de verificación
+        const verificationContainer = document.getElementById('verification-list');
+        if (verificationContainer) {
+            verificationContainer.innerHTML = '<tr><td colspan="6" class="text-center">Cargando solicitudes...</td></tr>';
 
+            try {
+                const pendingUsers = await SupabaseService.getUsersByStatus('PENDIENTE');
+
+                if (pendingUsers.length === 0) {
+                    verificationContainer.innerHTML = '<tr><td colspan="6" class="text-center">No hay solicitudes pendientes 🎉</td></tr>';
+                } else {
+                    verificationContainer.innerHTML = pendingUsers.map(user => `
+                        <tr>
+                            <td>${new Date(user.created_at).toLocaleDateString()}</td>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <strong>${user.username}</strong>
+                                    <br><small>${user.email}</small>
+                                </div>
+                            </td>
+                            <td><span class="badge">${user.role}</span></td>
+                            <td>
+                                ${user.age || this.calculateAge(user.birth_date)} años
+                                <br>${user.province || 'N/A'}
+                            </td>
+                            <td>
+                                <button class="btn btn-secondary btn-small" onclick="app.openVerifyModal('${user.id}')">Ver Fotos</button>
+                            </td>
+                            <td>
+                                <div style="display: flex; gap: 5px;">
+                                    <button class="btn btn-success btn-small" onclick="app.approveUser('${user.id}')">✅</button>
+                                    <button class="btn btn-error btn-small" onclick="app.rejectUser('${user.id}')">❌</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('');
+
+                    // Store pending users in state for modal access
+                    this.pendingUsersCache = pendingUsers;
+                }
+            } catch (error) {
+                console.error('Error loading pending users:', error);
+                verificationContainer.innerHTML = '<tr><td colspan="6" class="text-center error">Error cargando datos</td></tr>';
+                this.showToast('Error cargando solicitudes: ' + error.message, 'error');
+            }
+        }
+
+        // Cargar también las estadísticas y gestión general
+        await this.loadAdminStats();
+    },
+
+    async loadAdminStats() {
         try {
-            const pendingUsers = await SupabaseService.getUsersByStatus('PENDIENTE');
+            const allUsers = await SupabaseService.getAllUsers();
+            const allEvents = await SupabaseService.getAllEvents();
 
-            if (pendingUsers.length === 0) {
-                container.innerHTML = '<tr><td colspan="6" class="text-center">No hay solicitudes pendientes 🎉</td></tr>';
-                return;
+            // Buscar o crear contenedor de estadísticas
+            let statsContainer = document.getElementById('admin-stats-section');
+            if (!statsContainer) {
+                const adminView = document.getElementById('view-admin');
+                const existingDashboard = adminView.querySelector('.admin-dashboard');
+                if (existingDashboard) {
+                    statsContainer = document.createElement('div');
+                    statsContainer.id = 'admin-stats-section';
+                    statsContainer.className = 'admin-stats-section';
+                    existingDashboard.appendChild(statsContainer);
+                }
             }
 
-            container.innerHTML = pendingUsers.map(user => `
-                <tr>
-                    <td>${new Date(user.created_at).toLocaleDateString()}</td>
-                    <td>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <strong>${user.username}</strong>
-                            <br><small>${user.email}</small>
+            if (statsContainer) {
+                statsContainer.innerHTML = `
+                    <div class="stats-grid" style="margin-top: 30px;">
+                        <div class="stat-card">
+                            <div class="stat-value">${allUsers.length}</div>
+                            <div class="stat-label">Usuarios Totales</div>
                         </div>
-                    </td>
-                    <td><span class="badge">${user.role}</span></td>
-                    <td>
-                        ${user.age || this.calculateAge(user.birth_date)} años
-                        <br>${user.province || 'N/A'}
-                    </td>
-                    <td>
-                        <button class="btn btn-secondary btn-small" onclick="app.openVerifyModal('${user.id}')">Ver Fotos</button>
-                    </td>
-                    <td>
-                        <div style="display: flex; gap: 5px;">
-                            <button class="btn btn-success btn-small" onclick="app.approveUser('${user.id}')">✅</button>
-                            <button class="btn btn-error btn-small" onclick="app.rejectUser('${user.id}')">❌</button>
+                        <div class="stat-card">
+                            <div class="stat-value">${allEvents.length}</div>
+                            <div class="stat-label">Eventos Totales</div>
                         </div>
-                    </td>
-                </tr>
-            `).join('');
-
-            // Store pending users in state for modal access
-            this.pendingUsersCache = pendingUsers;
-
+                    </div>
+                    
+                    <div class="tabs" style="margin-top: 20px;">
+                        <button class="tab-btn active" onclick="app.switchAdminTab('users', this)">Usuarios</button>
+                        <button class="tab-btn" onclick="app.switchAdminTab('events', this)">Eventos</button>
+                    </div>
+                    
+                    <div id="admin-tab-content" style="margin-top: 20px;">
+                        ${this.renderAdminUsersTable(allUsers)}
+                    </div>
+                `;
+            }
         } catch (error) {
-            console.error('Error loading admin view:', error);
-            container.innerHTML = '<tr><td colspan="6" class="text-center error">Error cargando datos</td></tr>';
-            this.showToast('Error cargando solicitudes: ' + error.message, 'error');
+            console.error('Error loading admin stats:', error);
         }
+    },
+
+    async switchAdminTab(tabName, btnElement) {
+        const buttons = document.querySelectorAll('.tab-btn');
+        buttons.forEach(b => b.classList.remove('active'));
+        if (btnElement) btnElement.classList.add('active');
+
+        const content = document.getElementById('admin-tab-content');
+        if (!content) return;
+
+        try {
+            if (tabName === 'users') {
+                const users = await SupabaseService.getAllUsers();
+                content.innerHTML = this.renderAdminUsersTable(users);
+            } else if (tabName === 'events') {
+                const events = await SupabaseService.getAllEvents();
+                content.innerHTML = this.renderAdminEventsTable(events);
+            }
+        } catch (error) {
+            console.error('Error switching tab:', error);
+            content.innerHTML = '<div class="error">Error cargando datos</div>';
+        }
+    },
+
+    renderAdminUsersTable(users) {
+        return `
+            <div class="card">
+                <h3>Gestión de Usuarios</h3>
+                <div class="table-responsive">
+                    <table class="table" style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--color-border);">
+                                <th style="padding: 10px; text-align: left;">Usuario</th>
+                                <th style="padding: 10px; text-align: left;">Email</th>
+                                <th style="padding: 10px; text-align: left;">Rol</th>
+                                <th style="padding: 10px; text-align: left;">Estado</th>
+                                <th style="padding: 10px; text-align: left;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${users.map(u => `
+                                <tr style="border-bottom: 1px solid var(--color-border);">
+                                    <td style="padding: 10px;">${u.username}</td>
+                                    <td style="padding: 10px;">${u.email}</td>
+                                    <td style="padding: 10px;">
+                                        <span class="badge ${u.role === 'ADMIN' ? 'badge-primary' : 'badge-secondary'}">${u.role}</span>
+                                    </td>
+                                    <td style="padding: 10px;">${u.verified || 'No verificado'}</td>
+                                    <td style="padding: 10px;">
+                                        <button class="btn btn-secondary btn-small" onclick="app.deleteUser('${u.id}')">🗑️</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    },
+
+    renderAdminEventsTable(events) {
+        return `
+            <div class="card">
+                <h3>Gestión de Eventos</h3>
+                <div class="table-responsive">
+                    <table class="table" style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--color-border);">
+                                <th style="padding: 10px; text-align: left;">Título</th>
+                                <th style="padding: 10px; text-align: left;">Organizador</th>
+                                <th style="padding: 10px; text-align: left;">Estado</th>
+                                <th style="padding: 10px; text-align: left;">Fecha</th>
+                                <th style="padding: 10px; text-align: left;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${events.map(e => `
+                                <tr style="border-bottom: 1px solid var(--color-border);">
+                                    <td style="padding: 10px;">${e.title}</td>
+                                    <td style="padding: 10px;">${e.organizer?.username || 'N/A'}</td>
+                                    <td style="padding: 10px;">${e.status}</td>
+                                    <td style="padding: 10px;">${e.date}</td>
+                                    <td style="padding: 10px;">
+                                        <button class="btn btn-secondary btn-small" onclick="app.deleteEvent('${e.id}')">🗑️</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
     },
 
     calculateAge(birthDate) {
