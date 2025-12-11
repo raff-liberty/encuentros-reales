@@ -185,8 +185,51 @@
 
             <!-- Vista: Admin -->
             <div id="view-admin" class="view hidden">
-                <div id="admin-container">
-                    <!-- Se llenará dinámicamente -->
+                <div class="page-header">
+                    <h1>Panel de Administración</h1>
+                </div>
+
+                <div class="admin-dashboard">
+                    <!-- Verification Queue -->
+                    <div class="card full-width">
+                        <div class="card-header">
+                            <h3>🔍 Solicitudes de Registro (Pendientes)</h3>
+                        </div>
+                        <div class="table-container">
+                            <table class="data-table" id="verification-table">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Usuario</th>
+                                        <th>Rol</th>
+                                        <th>Edad/Provincia</th>
+                                        <th>Fotos</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="verification-list">
+                                    <!-- Dynamic Content -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Modal Verificación Detalle (Internal to Admin View) -->
+                    <div id="verify-modal" class="modal">
+                        <div class="modal-content" style="max-width: 900px;">
+                            <h2>Revisión de Identidad</h2>
+                            <div id="verify-user-details"
+                                style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;">
+                                <!-- Details here -->
+                            </div>
+                            <div class="modal-actions">
+                                <button class="btn btn-secondary"
+                                    onclick="document.getElementById('verify-modal').classList.remove('active')">Cancelar</button>
+                                <button class="btn btn-error" id="btn-reject-user">Rechazar</button>
+                                <button class="btn btn-success" id="btn-approve-user">Aprobar & Verificar</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -201,49 +244,161 @@
         </main>
     </div>
 
-    <!-- Modal: Login/Registro -->
+    <!-- Modal: Login/Registro (Wizard System) -->
     <div id="auth-modal" class="modal active">
-        <div class="modal-content auth-card">
-            <h2 id="auth-title" style="text-align: center; margin-bottom: var(--spacing-lg);">Iniciar Sesión</h2>
+        <div class="modal-content auth-card wizard-container">
+            <!-- Header del Modal -->
+            <div class="auth-header">
+                <h2 id="auth-title">Bienvenido</h2>
+                <div class="wizard-progress hidden" id="wizard-progress">
+                    <div class="step-dot active" data-step="1">1</div>
+                    <div class="step-line"></div>
+                    <div class="step-dot" data-step="2">2</div>
+                    <div class="step-line"></div>
+                    <div class="step-dot" data-step="3">3</div>
+                </div>
+            </div>
 
-            <form id="auth-form" onsubmit="app.handleAuth(event)">
-                <div class="form-group">
-                    <label for="auth-email">Email</label>
-                    <input type="email" id="auth-email" required placeholder="tu@email.com">
+            <!-- VISTA DE LOGIN (Default) -->
+            <div id="view-login" class="wizard-step active">
+                <form id="login-form" onsubmit="app.handleLogin(event)">
+                    <div class="form-group">
+                        <label for="login-email">Email</label>
+                        <input type="email" id="login-email" required placeholder="tu@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">Contraseña</label>
+                        <input type="password" id="login-password" required placeholder="********">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block btn-large">Entrar</button>
+
+                    <div class="auth-separator">o</div>
+
+                    <button type="button" class="btn btn-secondary btn-block" onclick="app.startRegistration()">
+                        Crear Cuenta Nueva
+                    </button>
+                </form>
+            </div>
+
+            <!-- WIZARD PASO 1: PRESENTACIÓN Y ROL -->
+            <div id="reg-step-1" class="wizard-step">
+                <div class="presentation-text">
+                    <h3>Nuestra Misión</h3>
+                    <p>Encuentros Reales es un espacio seguro y verificado para adultos que buscan conexiones
+                        auténticas. Valoramos la honestidad, el respeto y la privacidad.</p>
                 </div>
 
-                <div class="form-group">
-                    <label for="auth-password">Contraseña</label>
-                    <input type="password" id="auth-password" required placeholder="********">
+                <h4 style="margin: 20px 0 10px;">¿Cómo quieres participar?</h4>
+
+                <div class="role-selector">
+                    <div class="role-card" onclick="app.selectRole('OFERENTE')">
+                        <div class="role-icon">👸</div>
+                        <h4>Organizadora</h4>
+                        <p>Deseo crear y gestionar mis propios eventos exclusivos.</p>
+                    </div>
+                    <div class="role-card" onclick="app.selectRole('BUSCADOR')">
+                        <div class="role-icon">🕵️</div>
+                        <h4>Buscador</h4>
+                        <p>Deseo postularme a experiencias únicas y verificadas.</p>
+                    </div>
+                </div>
+                <!-- Input oculto para guardar selección -->
+                <input type="hidden" id="reg-role">
+
+                <div class="wizard-actions">
+                    <button type="button" class="btn btn-text" onclick="app.cancelRegistration()">Cancelar</button>
+                </div>
+            </div>
+
+            <!-- WIZARD PASO 2: DATOS DE CUENTA -->
+            <div id="reg-step-2" class="wizard-step">
+                <form id="reg-form-data" onsubmit="app.submitStep2(event)">
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="reg-email" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Contraseña</label>
+                        <input type="password" id="reg-password" required minlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label>Nombre Completo (Privado)</label>
+                        <input type="text" id="reg-fullname" required placeholder="Para verificación interna">
+                    </div>
+                    <div class="form-group">
+                        <label>Nombre de Usuario (Público)</label>
+                        <input type="text" id="reg-username" required placeholder="Tu alias en la app">
+                    </div>
+                    <div class="row-2">
+                        <div class="form-group">
+                            <label>Fecha Nacimiento</label>
+                            <input type="date" id="reg-birthdate" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Provincia</label>
+                            <select id="reg-province" required>
+                                <option value="">Selecciona</option>
+                                <option value="Madrid">Madrid</option>
+                                <option value="Barcelona">Barcelona</option>
+                                <option value="Valencia">Valencia</option>
+                                <option value="Sevilla">Sevilla</option>
+                                <option value="Otra">Otra</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="wizard-actions">
+                        <button type="button" class="btn btn-secondary" onclick="app.prevStep()">Atrás</button>
+                        <button type="submit" class="btn btn-primary">Siguiente</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- WIZARD PASO 3: VERIFICACIÓN -->
+            <div id="reg-step-3" class="wizard-step">
+                <div class="info-box">
+                    <p>🔒 <strong>Verificación Obligatoria</strong></p>
+                    <p class="small">Para mantener la seguridad de la comunidad, necesitamos validar tu identidad. Estas
+                        fotos NO serán públicas, solo para administración.</p>
                 </div>
 
-                <!-- Campos de Registro (ocultos por defecto) -->
-                <div id="name-group" class="form-group hidden">
-                    <label for="auth-username">Nombre de Usuario</label>
-                    <input type="text" id="auth-username" placeholder="Elige un alias único">
-                </div>
+                <div class="upload-grid">
+                    <div class="upload-zone" onclick="document.getElementById('reg-photo-face').click()">
+                        <div id="preview-face" class="upload-preview">📸</div>
+                        <p>Foto de Rostro</p>
+                        <input type="file" id="reg-photo-face" hidden accept="image/*"
+                            onchange="app.handleRegPhoto('face', this)">
+                    </div>
 
-                <div id="role-group" class="form-group hidden">
-                    <label>¿Qué buscas?</label>
-                    <div class="radio-selector">
-                        <label class="radio-option">
-                            <input type="radio" name="role" id="auth-role" value="BUSCADOR" checked>
-                            <span>Buscador</span>
-                        </label>
-                        <label class="radio-option">
-                            <input type="radio" name="role" value="OFERENTE">
-                            <span>Oferente</span>
-                        </label>
+                    <div class="upload-zone" onclick="document.getElementById('reg-photo-id').click()">
+                        <div id="preview-id" class="upload-preview">🪪</div>
+                        <p>Selfie con DNI</p>
+                        <input type="file" id="reg-photo-id" hidden accept="image/*"
+                            onchange="app.handleRegPhoto('id', this)">
                     </div>
                 </div>
 
-                <button type="submit" id="auth-submit" class="btn btn-primary btn-block btn-large">Entrar</button>
+                <div class="wizard-actions">
+                    <button type="button" class="btn btn-secondary" onclick="app.prevStep()">Atrás</button>
+                    <button type="button" class="btn btn-primary" onclick="app.finishRegistration()">Enviar
+                        Solicitud</button>
+                </div>
+            </div>
 
-                <p class="text-center" style="margin-top: var(--spacing-md);">
-                    <span id="auth-toggle-text">¿No tienes cuenta?</span>
-                    <a href="#" id="auth-toggle-link" onclick="app.toggleAuthMode()">Regístrate</a>
-                </p>
-            </form>
+            <!-- WIZARD PASO 4: PENDIENTE -->
+            <div id="reg-step-4" class="wizard-step">
+                <div class="success-message">
+                    <div class="icon-pulse">⏳</div>
+                    <h3>Solicitud Enviada</h3>
+                    <p>Hemos recibido tus datos correctamente.</p>
+                    <div class="info-card">
+                        <p>Un administrador humano revisará tu perfil en breve.</p>
+                        <p>Recibirás un email cuando tu cuenta sea activada.</p>
+                    </div>
+                    <button class="btn btn-primary btn-block" onclick="location.reload()">Entendido</button>
+                </div>
+            </div>
+
         </div>
     </div>
 

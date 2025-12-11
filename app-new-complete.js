@@ -116,83 +116,184 @@ const app = {
         document.getElementById('auth-modal').classList.add('active');
     },
 
-    // ===== AUTENTICACIÓN =====
-    toggleAuthMode() {
-        const title = document.getElementById('auth-title');
-        const submitBtn = document.getElementById('auth-submit');
-        const toggleText = document.getElementById('auth-toggle-text');
-        const toggleLink = document.getElementById('auth-toggle-link');
-        const nameGroup = document.getElementById('name-group');
-        const roleGroup = document.getElementById('role-group');
-
-        const isLogin = title.textContent === 'Iniciar Sesión';
-
-        if (isLogin) {
-            title.textContent = 'Crear Cuenta';
-            submitBtn.textContent = 'Registrarse';
-            toggleText.textContent = '¿Ya tienes cuenta?';
-            toggleLink.textContent = 'Inicia sesión';
-            nameGroup.classList.remove('hidden');
-            roleGroup.classList.remove('hidden');
-            // Reset form
-            document.getElementById('auth-form').reset();
-        } else {
-            title.textContent = 'Iniciar Sesión';
-            submitBtn.textContent = 'Entrar';
-            toggleText.textContent = '¿No tienes cuenta?';
-            toggleLink.textContent = 'Regístrate';
-            nameGroup.classList.add('hidden');
-            roleGroup.classList.add('hidden');
-            // Reset form
-            document.getElementById('auth-form').reset();
+    // ===== WIZARD REGISTRATION =====
+    registrationState: {
+        step: 1,
+        data: {
+            role: '',
+            email: '',
+            password: '',
+            fullName: '',
+            username: '',
+            birthDate: '',
+            province: '',
+            photos: { face: null, id: null }
         }
     },
 
-    async handleAuth(event) {
-        if (event) event.preventDefault();
+    startRegistration() {
+        document.getElementById('view-login').classList.remove('active');
+        document.getElementById('auth-title').textContent = 'Crear Cuenta';
+        document.getElementById('wizard-progress').classList.remove('hidden');
+        this.showWizardStep(1);
+    },
 
-        const email = document.getElementById('auth-email').value;
-        const password = document.getElementById('auth-password').value;
-        const isLogin = document.getElementById('auth-title').textContent === 'Iniciar Sesión';
+    cancelRegistration() {
+        document.getElementById('wizard-progress').classList.add('hidden');
+        this.showWizardStep('login'); // 'login' is a special key here or we handle it manually
+        document.getElementById('auth-title').textContent = 'Bienvenido';
+        document.getElementById('view-login').classList.add('active');
+
+        // Reset steps visibility
+        document.querySelectorAll('.wizard-step').forEach(s => {
+            if (s.id !== 'view-login') s.classList.remove('active');
+        });
+    },
+
+    showWizardStep(step) {
+        // Hide all steps/views except auth header
+        document.querySelectorAll('.wizard-step').forEach(el => el.classList.remove('active'));
+
+        if (step === 'login') {
+            document.getElementById('view-login').classList.add('active');
+            return;
+        }
+
+        const stepEl = document.getElementById(`reg-step-${step}`);
+        if (stepEl) stepEl.classList.add('active');
+
+        // Update dots
+        document.querySelectorAll('.step-dot').forEach(dot => {
+            const dotStep = parseInt(dot.dataset.step);
+            dot.classList.toggle('active', dotStep <= step);
+        });
+
+        this.registrationState.step = step;
+    },
+
+    selectRole(role) {
+        this.registrationState.data.role = role;
+        document.getElementById('reg-role').value = role;
+
+        // Visual selection
+        document.querySelectorAll('.role-card').forEach(c => c.classList.remove('selected'));
+        // Find the card clicked - simple DOM traversal or query
+        const cards = document.querySelectorAll('.role-card');
+        if (role === 'OFERENTE') cards[0].classList.add('selected');
+        else cards[1].classList.add('selected');
+
+        // Auto move next after brief delay
+        setTimeout(() => this.showWizardStep(2), 300);
+    },
+
+    prevStep() {
+        if (this.registrationState.step > 1) {
+            this.showWizardStep(this.registrationState.step - 1);
+        }
+    },
+
+    submitStep2(event) {
+        event.preventDefault();
+        // Collect data
+        this.registrationState.data.email = document.getElementById('reg-email').value;
+        this.registrationState.data.password = document.getElementById('reg-password').value;
+        this.registrationState.data.fullName = document.getElementById('reg-fullname').value;
+        this.registrationState.data.username = document.getElementById('reg-username').value;
+        this.registrationState.data.birthDate = document.getElementById('reg-birthdate').value;
+        this.registrationState.data.province = document.getElementById('reg-province').value;
+
+        this.showWizardStep(3);
+    },
+
+    handleRegPhoto(type, input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                // Store base64 preview
+                this.registrationState.data.photos[type] = e.target.result;
+                // Show preview
+                const previewEl = document.getElementById(`preview-${type}`);
+                previewEl.innerHTML = `<img src="${e.target.result}">`;
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    },
+
+    async finishRegistration() {
+        const { photos } = this.registrationState.data;
+        if (!photos.face || !photos.id) {
+            this.showToast('Debes subir ambas fotos para continuar', 'error');
+            return;
+        }
+
+        this.showToast('Enviando registro...', 'info');
 
         try {
-            if (isLogin) {
-                // LOGIN CON SUPABASE
-                this.showToast('Iniciando sesión...', 'info');
-                const user = await SupabaseService.signIn(email, password);
+            // Send to Backend
+            // NOTE: In a real app we'd upload photos to Storage and get URLs first.
+            // For this demo, we might store them as base64 or mock URLs.
+            // Let's assume SupabaseService handles the user creation.
 
-                // Normalizar avatar_url a avatar para compatibilidad con UI
-                user.avatar = user.avatar_url || user.avatar;
-                AppState.currentUser = user;
-                // Guardar en localStorage solo como backup/cache si se desea
-                localStorage.setItem('currentUser', JSON.stringify(user));
-
-                this.showToast('¡Bienvenido de nuevo!', 'success');
-                this.showApp();
-            } else {
-                // REGISTRO CON SUPABASE
-                const username = document.getElementById('auth-username').value;
-                const role = document.getElementById('auth-role').value;
-
-                if (!username || !role) {
-                    this.showToast('Por favor completa todos los campos', 'error');
-                    return;
+            await SupabaseService.signUp(
+                this.registrationState.data.email,
+                this.registrationState.data.password,
+                {
+                    username: this.registrationState.data.username,
+                    full_name: this.registrationState.data.fullName,
+                    role: this.registrationState.data.role,
+                    birth_date: this.registrationState.data.birthDate,
+                    province: this.registrationState.data.province,
+                    verified: 'PENDIENTE',
+                    // Save photo previews strictly for demo/admin view (normally too heavy for metadata)
+                    verification_photos: this.registrationState.data.photos
                 }
+            );
 
-                this.showToast('Creando cuenta...', 'info');
-                await SupabaseService.signUp(email, password, {
-                    username,
-                    role,
-                    verified: 'NO_VERIFICADO'
-                });
+            // Show Success Step
+            this.showWizardStep(4);
 
-                this.showToast('Cuenta creada exitosamente. Por favor verifica tu email o inicia sesión.', 'success');
-                // Cambiar a modo login
-                this.toggleAuthMode();
-            }
         } catch (error) {
-            console.error('Auth error:', error);
-            this.showToast('Error: ' + (error.message || 'Error de autenticación'), 'error');
+            console.error('Registration error:', error);
+            this.showToast('Error: ' + error.message, 'error');
+        }
+    },
+
+    // ===== LOGIN UPDATED =====
+    async handleLogin(event) {
+        event.preventDefault();
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+
+        this.showToast('Iniciando sesión...', 'info');
+
+        try {
+            const user = await SupabaseService.signIn(email, password);
+
+            // CHECK VERIFICATION STATUS
+            if (user.verified === 'PENDIENTE') {
+                this.showToast('Tu cuenta aún está pendiente de verificación.', 'warning');
+                // Force logout to clear session context locally if any
+                await SupabaseService.signOut();
+                return;
+            }
+
+            if (user.verified === 'RECHAZADO' || user.verified === 'BLOQUEADO') {
+                this.showToast('Tu cuenta ha sido rechazada o bloqueada.', 'error');
+                await SupabaseService.signOut();
+                return;
+            }
+
+            // Normalizar avatar_url a avatar para compatibilidad con UI
+            user.avatar = user.avatar_url || user.avatar;
+            AppState.currentUser = user;
+            localStorage.setItem('currentUser', JSON.stringify(user));
+
+            this.showToast('¡Bienvenido de nuevo!', 'success');
+            this.showApp();
+
+        } catch (error) {
+            console.error('Login error:', error);
+            this.showToast('Error:Credenciales inválidas o error de conexión', 'error');
         }
     },
 
@@ -572,6 +673,8 @@ const app = {
     // ===== VISTAS PRINCIPALES =====
     async loadExploreView() {
         const container = document.getElementById('events-list');
+        if (!container) return;
+
         container.innerHTML = '<div class="loader">Cargando eventos...</div>';
 
         try {
@@ -582,11 +685,6 @@ const app = {
             if (AppState.filters.zone) {
                 events = events.filter(e => e.zone === AppState.filters.zone);
             }
-            if (AppState.filters.type) {
-                // Mapear filtros de UI a valores de BD si es necesario
-                // Por ahora asumimos coincidencia directa
-                // events = events.filter(e => e.gangbang_level === AppState.filters.type);
-            }
 
             this.renderEvents(events);
         } catch (error) {
@@ -596,6 +694,131 @@ const app = {
                 <p>${error.message || 'Error desconocido'}</p>
                 <small>Código: ${error.code || 'N/A'}</small>
             </div>`;
+        }
+    },
+
+    async loadAdminView() {
+        const container = document.getElementById('verification-list');
+        container.innerHTML = '<tr><td colspan="6" class="text-center">Cargando solicitudes...</td></tr>';
+
+        try {
+            const pendingUsers = await SupabaseService.getUsersByStatus('PENDIENTE');
+
+            if (pendingUsers.length === 0) {
+                container.innerHTML = '<tr><td colspan="6" class="text-center">No hay solicitudes pendientes 🎉</td></tr>';
+                return;
+            }
+
+            container.innerHTML = pendingUsers.map(user => `
+                <tr>
+                    <td>${new Date(user.created_at).toLocaleDateString()}</td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <strong>${user.username}</strong>
+                            <br><small>${user.email}</small>
+                        </div>
+                    </td>
+                    <td><span class="badge">${user.role}</span></td>
+                    <td>
+                        ${user.age || this.calculateAge(user.birth_date)} años
+                        <br>${user.province || 'N/A'}
+                    </td>
+                    <td>
+                        <button class="btn btn-secondary btn-small" onclick="app.openVerifyModal('${user.id}')">Ver Fotos</button>
+                    </td>
+                    <td>
+                        <div style="display: flex; gap: 5px;">
+                            <button class="btn btn-success btn-small" onclick="app.approveUser('${user.id}')">✅</button>
+                            <button class="btn btn-error btn-small" onclick="app.rejectUser('${user.id}')">❌</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+
+            // Store pending users in state for modal access
+            this.pendingUsersCache = pendingUsers;
+
+        } catch (error) {
+            console.error('Error loading admin view:', error);
+            container.innerHTML = '<tr><td colspan="6" class="text-center error">Error cargando datos</td></tr>';
+            this.showToast('Error cargando solicitudes: ' + error.message, 'error');
+        }
+    },
+
+    calculateAge(birthDate) {
+        if (!birthDate) return '??';
+        const diff = Date.now() - new Date(birthDate).getTime();
+        const age = new Date(diff).getUTCFullYear() - 1970;
+        return age;
+    },
+
+    openVerifyModal(userId) {
+        const user = this.pendingUsersCache.find(u => u.id === userId);
+        if (!user) return;
+
+        const details = document.getElementById('verify-user-details');
+
+        // Render photos (assuming verification_photos is stored as JSONB with base64 or URLs)
+        const photos = user.verification_photos || {};
+        const faceSrc = photos.face || 'placeholder.png'; // Fallback
+        const idSrc = photos.id || 'placeholder.png';
+
+        details.innerHTML = `
+            <div>
+                <h4>Foto de Rostro</h4>
+                <div style="background: black; height: 300px; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 8px;">
+                    <img src="${faceSrc}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                </div>
+            </div>
+            <div>
+                <h4>Selfie con DNI</h4>
+                <div style="background: black; height: 300px; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 8px;">
+                    <img src="${idSrc}" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+                </div>
+            </div>
+            <div style="grid-column: span 2;">
+                <h4>Datos del Usuario</h4>
+                <p><strong>Nombre Real:</strong> ${user.full_name || 'No especificado'}</p>
+                <p><strong>Fecha Nacimiento:</strong> ${user.birth_date} (Edad: ${this.calculateAge(user.birth_date)})</p>
+                <p><strong>Provincia:</strong> ${user.province}</p>
+                <p><strong>Bio:</strong> ${user.bio || 'Sin bio'}</p>
+            </div>
+        `;
+
+        // Bind actions
+        document.getElementById('btn-approve-user').onclick = () => this.approveUser(userId);
+        document.getElementById('btn-reject-user').onclick = () => this.rejectUser(userId);
+
+        document.getElementById('verify-modal').classList.add('active');
+    },
+
+    async approveUser(userId) {
+        if (!confirm('¿Aprobar y verificar a este usuario?')) return;
+
+        try {
+            await SupabaseService.verifyUser(userId, 'VERIFICADO');
+            // TODO: Send email
+            this.showToast('Usuario verificado correctamente', 'success');
+            document.getElementById('verify-modal').classList.remove('active');
+            this.loadAdminView(); // Refresh list
+        } catch (error) {
+            console.error(error);
+            this.showToast('Error: ' + error.message, 'error');
+        }
+    },
+
+    async rejectUser(userId) {
+        if (!confirm('¿RECHAZAR a este usuario? Esta acción bloqueará el acceso.')) return;
+
+        try {
+            await SupabaseService.verifyUser(userId, 'RECHAZADO');
+            // TODO: Send email
+            this.showToast('Usuario rechazado', 'info');
+            document.getElementById('verify-modal').classList.remove('active');
+            this.loadAdminView(); // Refresh list
+        } catch (error) {
+            console.error(error);
+            this.showToast('Error: ' + error.message, 'error');
         }
     },
 

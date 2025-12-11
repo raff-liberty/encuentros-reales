@@ -9,7 +9,7 @@ const DB = {
             password: 'admin123',
             username: 'Admin',
             role: 'ADMIN',
-            verified: 'VERIFICADO',
+            verified: 'VERIFICADO', // Nuevo estado
             avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin',
             age: null,
             bio: '',
@@ -18,15 +18,19 @@ const DB = {
             reviewsCount: 0,
             reviews: [],
             zone: 'centro',
-            createdAt: new Date('2024-01-01')
+            created_at: new Date('2024-01-01').toISOString() // Date normalized
         },
         {
             id: 'user-1',
             email: 'oferente@test.com',
             password: 'test123',
             username: 'Luna_Sensual',
-            role: 'OFERENTE',
+            role: 'OFERENTE', // Nuevo rol
             verified: 'VERIFICADO',
+            fullName: 'Luna Gomez', // Nuevo campo
+            province: 'Madrid', // Nuevo campo
+            birthDate: '1995-05-15', // Nuevo campo
+            verificationPhotos: { face: '', id: '' }, // Nuevo campo
             avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=luna',
             age: 28,
             bio: 'Organizadora de eventos exclusivos. Busco calidad sobre cantidad.',
@@ -35,7 +39,7 @@ const DB = {
             reviewsCount: 12,
             reviews: [],
             zone: 'norte',
-            createdAt: new Date('2024-06-15')
+            created_at: new Date('2024-06-15').toISOString()
         },
         {
             id: 'user-2',

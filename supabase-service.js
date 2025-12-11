@@ -631,6 +631,39 @@ const SupabaseService = {
             .eq('user_id', userId);
 
         if (error) throw error;
+    },
+
+    // ===== ADMIN USER MANAGEMENT =====
+    async getUsersByStatus(status) {
+        // Obtenemos los usuarios filtrados por columna 'verified'
+        // Nota: Asegúrate de que la columna existe en tu tabla 'users'
+        const { data, error } = await supabaseClient
+            .from('users')
+            .select('*')
+            .eq('verified', status)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        // Normalizar avatar
+        if (data) {
+            data.forEach(u => {
+                u.avatar = u.avatar_url || u.avatar;
+            });
+        }
+        return data;
+    },
+
+    async verifyUser(userId, newStatus) {
+        const { data, error } = await supabaseClient
+            .from('users')
+            .update({ verified: newStatus })
+            .eq('id', userId)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
     }
 };
 
