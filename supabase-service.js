@@ -654,6 +654,23 @@ const SupabaseService = {
         return data;
     },
 
+    async getAllUsers() {
+        const { data, error } = await supabaseClient
+            .from('users')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        // Normalizar avatar
+        if (data) {
+            data.forEach(u => {
+                u.avatar = u.avatar_url || u.avatar;
+            });
+        }
+        return data;
+    },
+
     async verifyUser(userId, newStatus) {
         const { data, error } = await supabaseClient
             .from('users')
