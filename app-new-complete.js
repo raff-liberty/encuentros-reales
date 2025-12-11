@@ -372,7 +372,8 @@ const app = {
 
         } catch (error) {
             console.error('Login error:', error);
-            this.showToast('Error:Credenciales inválidas o error de conexión', 'error');
+            // Mostrar mensaje real del error para depuración
+            this.showToast('Error: ' + (error.message || 'Error de conexión'), 'error');
         }
     },
 
