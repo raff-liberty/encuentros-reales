@@ -665,9 +665,16 @@ const SupabaseService = {
     },
 
     async verifyUser(userId, newStatus) {
+        const updates = { verified: newStatus };
+
+        // Si se aprueba o rechaza, eliminar las fotos de verificación por privacidad
+        if (newStatus === 'VERIFICADO' || newStatus === 'RECHAZADO') {
+            updates.verification_photos = {};
+        }
+
         const { data, error } = await supabaseClient
             .from('users')
-            .update({ verified: newStatus })
+            .update(updates)
             .eq('id', userId)
             .select()
             .single();
