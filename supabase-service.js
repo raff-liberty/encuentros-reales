@@ -3,8 +3,8 @@ const SupabaseService = {
     async signUp(email, password, userData) {
         if (!supabaseClient) throw new Error('Supabase no está configurado');
 
-        // El trigger en la base de datos creará automáticamente el perfil
-        // en public.users cuando se cree el usuario en auth.users
+        // 1. Registrar usuario SIN las fotos en los metadatos (para evitar QuotaExceededError)
+        // El trigger handle_new_user creará el perfil inicial
         const { data, error } = await supabaseClient.auth.signUp({
             email,
             password,
@@ -15,15 +15,28 @@ const SupabaseService = {
                     role: userData.role,
                     birth_date: userData.birth_date,
                     province: userData.province,
-                    verified: userData.verified || 'PENDIENTE',
-                    verification_photos: userData.verification_photos || {}
+                    verified: userData.verified || 'PENDIENTE'
+                    // NO enviamos verification_photos aquí
                 }
             }
         });
 
         if (error) throw error;
 
-        // El perfil ya fue creado por el trigger, no necesitamos hacerlo aquí
+        // 2. Subir las fotos usando una función RPC segura
+        // Esto guarda las fotos directamente en public.users sin pasar por auth.users
+        if (data.user && userData.verification_photos) {
+            const { error: rpcError } = await supabaseClient
+                .rpc('upload_verification_photos', {
+                    photos: userData.verification_photos
+                });
+
+            if (rpcError) {
+                console.error('Error subiendo fotos:', rpcError);
+                // No bloqueamos el registro, pero logueamos el error
+            }
+        }
+
         return data.user;
     },
 
