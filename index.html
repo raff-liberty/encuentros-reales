@@ -198,6 +198,20 @@
                 <div id="profile-container">
                     <!-- Se llenará dinámicamente -->
                 </div>
+
+                <!-- Zona de peligro (siempre visible en perfil) -->
+                <div
+                    style="margin-top: var(--spacing-2xl); padding: var(--spacing-xl); border: 2px solid var(--color-error); border-radius: var(--border-radius); background: rgba(239, 68, 68, 0.05);">
+                    <h3 style="color: var(--color-error); margin-bottom: var(--spacing-md);">⚠️ Zona de Peligro</h3>
+                    <p style="color: var(--color-text-secondary); margin-bottom: var(--spacing-md); font-size: 14px;">
+                        Esta acción es permanente y no se puede deshacer. Se eliminarán todos tus datos, eventos,
+                        aplicaciones y contenido.
+                    </p>
+                    <button type="button" class="btn btn-secondary" onclick="confirmDeleteAccount()"
+                        style="background: var(--color-error); border-color: var(--color-error);">
+                        🗑️ Eliminar Mi Cuenta Permanentemente
+                    </button>
+                </div>
             </div>
 
             <!-- Vista: Admin -->
