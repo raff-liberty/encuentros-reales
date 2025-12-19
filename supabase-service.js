@@ -1,3 +1,21 @@
+// ===== INICIALIZACIÓN DE SUPABASE =====
+const SUPABASE_URL = 'https://saqmbaanltvvidenvhow.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNhcW1iYWFubHR2dmlkZW52aG93Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzMTAxNTEsImV4cCI6MjA4MDg4NjE1MX0.n6LHIyp6lIINIRzgzHYjLTWg2Sj_XeLRxc3car5XqLo';
+
+// Inicializar cliente de Supabase
+let supabaseClient = null;
+if (typeof window !== 'undefined' && window.supabase && window.supabase.createClient) {
+    try {
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        window.supabaseClient = supabaseClient;
+        console.log('✅ Cliente Supabase inicializado en supabase-service.js');
+    } catch (e) {
+        console.error('❌ Error inicializando Supabase:', e);
+    }
+} else {
+    console.warn('⚠️ window.supabase no disponible aún. Se inicializará cuando esté listo.');
+}
+
 const SupabaseService = {
     // ===== AUTENTICACIÓN =====
     async signUp(email, password, userData) {
