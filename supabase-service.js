@@ -756,6 +756,62 @@ const SupabaseService = {
         return true;
     },
 
+    // Delete user account and all associated data (GDPR compliance)
+    async deleteAccount(userId) {
+        try {
+            // 1. Delete user's gallery images from storage
+            const { data: files } = await supabaseClient.storage
+                .from('gallery')
+                .list(userId);
+
+            if (files && files.length > 0) {
+                const filesToDelete = files.map(file => `${userId}/${file.name}`);
+                await supabaseClient.storage
+                    .from('gallery')
+                    .remove(filesToDelete);
+            }
+
+            // 2. Delete user's events (cascade will delete applications)
+            await supabaseClient
+                .from('events')
+                .delete()
+                .eq('organizer_id', userId);
+
+            // 3. Delete user's applications
+            await supabaseClient
+                .from('applications')
+                .delete()
+                .eq('user_id', userId);
+
+            // 4. Delete user's notifications
+            await supabaseClient
+                .from('notifications')
+                .delete()
+                .eq('user_id', userId);
+
+            // 5. Delete user's blog posts
+            await supabaseClient
+                .from('blog_posts')
+                .delete()
+                .eq('author_id', userId);
+
+            // 6. Delete user profile
+            await supabaseClient
+                .from('users')
+                .delete()
+                .eq('id', userId);
+
+            // 7. Sign out user
+            await supabaseClient.auth.signOut();
+
+            return { success: true };
+        } catch (error) {
+            console.error('Error deleting account:', error);
+            throw error;
+        }
+    },
+
+    // ===== BLOG =====
     // Blog: Get all published posts
     async getAllBlogPosts() {
         const { data, error } = await supabaseClient
