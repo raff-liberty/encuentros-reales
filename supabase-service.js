@@ -766,6 +766,18 @@ const SupabaseService = {
 
         if (error) throw error;
         return data;
+    },
+
+    // Blog: Get single post by ID
+    async getBlogPostById(id) {
+        const { data, error } = await supabaseClient
+            .from('blog_posts')
+            .select('*, author:users(username, avatar_url)')
+            .eq('id', id)
+            .single();
+
+        if (error) throw error;
+        return data;
     }
 };
 
