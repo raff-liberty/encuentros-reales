@@ -778,6 +778,71 @@ const SupabaseService = {
 
         if (error) throw error;
         return data;
+    },
+
+    // Blog: Create new post (admin)
+    async createBlogPost(postData) {
+        if (!postData.slug && postData.title) {
+            postData.slug = postData.title
+                .toLowerCase()
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/(^-|-$)/g, '');
+        }
+
+        const { data, error } = await supabaseClient
+            .from('blog_posts')
+            .insert([postData])
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    },
+
+    // Blog: Update post (admin)
+    async updateBlogPost(postId, updates) {
+        const { data, error } = await supabaseClient
+            .from('blog_posts')
+            .update(updates)
+            .eq('id', postId)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
+    },
+
+    // Blog: Delete post (admin)
+    async deleteBlogPost(postId) {
+        const { error } = await supabaseClient
+            .from('blog_posts')
+            .delete()
+            .eq('id', postId);
+
+        if (error) throw error;
+        return true;
+    },
+
+    // Blog: Toggle publish status (admin)
+    async toggleBlogPostPublish(postId) {
+        const { data: post, error: fetchError } = await supabaseClient
+            .from('blog_posts')
+            .select('published')
+            .eq('id', postId)
+            .single();
+
+        if (fetchError) throw fetchError;
+
+        const { data, error } = await supabaseClient
+            .from('blog_posts')
+            .update({ published: !post.published })
+            .eq('id', postId)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
     }
 };
 
