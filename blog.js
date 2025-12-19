@@ -196,7 +196,7 @@ window.loadAdminBlogList = async function () {
     container.innerHTML = '<div class="loading-spinner"></div>';
 
     try {
-        const posts = await SupabaseService.getAllBlogPosts();
+        const posts = await SupabaseService.getAdminBlogPosts();
 
         if (posts.length === 0) {
             container.innerHTML = '<p style="text-align: center; color: #888;">No hay posts aún</p>';
