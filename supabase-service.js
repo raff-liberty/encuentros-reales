@@ -569,7 +569,7 @@ const SupabaseService = {
                     title: '🏁 Evento Finalizado',
                     message: `El evento "${event.title}" ha finalizado. ¡No olvides valorar a la organizadora!`,
                     related_id: eventId,
-                    is_read: false
+                    read: false
                 }));
                 await supabaseClient.from('notifications').insert(notifications);
             }
@@ -607,7 +607,7 @@ const SupabaseService = {
             title: title,
             message: message,
             related_id: eventId,
-            is_read: false
+            read: false
         }));
 
         const { error } = await supabaseClient
