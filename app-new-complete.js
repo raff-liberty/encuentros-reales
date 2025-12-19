@@ -744,6 +744,9 @@ const app = {
             case 'profile':
                 this.loadProfileView();
                 break;
+            case 'blog':
+                this.loadBlogView();
+                break;
             case 'admin':
                 this.loadAdminView();
                 break;
