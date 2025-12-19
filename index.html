@@ -738,9 +738,9 @@
         <div class="modal-content" style="max-width: 800px;">
             <div class="modal-header">
                 <h2 id="blog-form-title">Crear Nuevo Post</h2>
-                <button class="close-modal" onclick="app.closeCreateBlogPost()">✕</button>
+                <button class="close-modal" onclick="closeCreateBlogPost()">✕</button>
             </div>
-            <form id="blog-post-form" onsubmit="app.handleBlogPostSubmit(event)">
+            <form id="blog-post-form" onsubmit="handleBlogPostSubmit(event)">
                 <div class="form-group">
                     <label for="blog-title">Título</label>
                     <input type="text" id="blog-title" required placeholder="Título del post">
@@ -763,8 +763,7 @@
                 </div>
                 <input type="hidden" id="blog-post-id">
                 <div style="display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-lg);">
-                    <button type="button" class="btn btn-secondary"
-                        onclick="app.closeCreateBlogPost()">Cancelar</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeCreateBlogPost()">Cancelar</button>
                     <button type="submit" class="btn btn-primary">Guardar</button>
                 </div>
             </form>
