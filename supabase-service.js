@@ -780,6 +780,17 @@ const SupabaseService = {
         return data;
     },
 
+    // Blog: Get all posts for admin (published and drafts)
+    async getAdminBlogPosts() {
+        const { data, error } = await supabaseClient
+            .from('blog_posts')
+            .select('*, author:users(username, avatar_url)')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        return data;
+    },
+
     // Blog: Create new post (admin)
     async createBlogPost(postData) {
         if (!postData.slug && postData.title) {
