@@ -153,6 +153,7 @@ window.handleBlogPostSubmit = async function (event) {
 
         closeCreateBlogPost();
         loadBlogView();
+        loadAdminBlogList();
     } catch (error) {
         console.error('Error saving post:', error);
         if (window.app && window.app.showToast) {
@@ -184,6 +185,131 @@ if (window.app && window.app.showView) {
         } else {
             originalShowView(viewName);
         }
+    };
+}
+
+// Load admin blog list
+window.loadAdminBlogList = async function () {
+    const container = document.getElementById('admin-blog-list');
+    if (!container) return;
+
+    container.innerHTML = '<div class="loading-spinner"></div>';
+
+    try {
+        const posts = await SupabaseService.getAllBlogPosts();
+
+        if (posts.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: #888;">No hay posts aún</p>';
+            return;
+        }
+
+        container.innerHTML = `
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Título</th>
+                        <th>Estado</th>
+                        <th>Fecha</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${posts.map(post => `
+                        <tr>
+                            <td>${post.title}</td>
+                            <td>
+                                <span class="badge badge-${post.published ? 'success' : 'secondary'}">
+                                    ${post.published ? 'Publicado' : 'Borrador'}
+                                </span>
+                            </td>
+                            <td>${new Date(post.created_at).toLocaleDateString('es-ES')}</td>
+                            <td>
+                                <button class="btn btn-secondary btn-small" onclick="editBlogPost('${post.id}')" title="Editar">✏️</button>
+                                <button class="btn btn-secondary btn-small" onclick="togglePublishBlogPost('${post.id}')" title="Publicar/Despublicar">
+                                    ${post.published ? '👁️' : '🔒'}
+                                </button>
+                                <button class="btn btn-secondary btn-small" onclick="deleteBlogPost('${post.id}')" title="Eliminar">🗑️</button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (error) {
+        console.error('Error loading admin blog list:', error);
+        container.innerHTML = '<p style="color: red;">Error cargando posts</p>';
+    }
+};
+
+// Edit blog post
+window.editBlogPost = async function (postId) {
+    try {
+        const post = await SupabaseService.getBlogPostById(postId);
+
+        const modal = document.getElementById('create-blog-post-modal');
+        const title = document.getElementById('blog-form-title');
+
+        if (title) title.textContent = 'Editar Post';
+
+        document.getElementById('blog-post-id').value = post.id;
+        document.getElementById('blog-title').value = post.title;
+        document.getElementById('blog-excerpt').value = post.excerpt || '';
+        document.getElementById('blog-content').value = post.content;
+        document.getElementById('blog-cover-image').value = post.cover_image || '';
+        document.getElementById('blog-published').checked = post.published;
+
+        if (modal) modal.classList.add('active');
+    } catch (error) {
+        console.error('Error loading post for edit:', error);
+        if (window.app && window.app.showToast) {
+            window.app.showToast('Error cargando el post', 'error');
+        }
+    }
+};
+
+// Delete blog post
+window.deleteBlogPost = async function (postId) {
+    if (!confirm('¿Estás seguro de que quieres eliminar este post?')) return;
+
+    try {
+        await SupabaseService.deleteBlogPost(postId);
+        if (window.app && window.app.showToast) {
+            window.app.showToast('Post eliminado correctamente', 'success');
+        }
+        loadAdminBlogList();
+    } catch (error) {
+        console.error('Error deleting post:', error);
+        if (window.app && window.app.showToast) {
+            window.app.showToast('Error eliminando el post', 'error');
+        }
+    }
+};
+
+// Toggle publish status
+window.togglePublishBlogPost = async function (postId) {
+    try {
+        await SupabaseService.toggleBlogPostPublish(postId);
+        if (window.app && window.app.showToast) {
+            window.app.showToast('Estado actualizado correctamente', 'success');
+        }
+        loadAdminBlogList();
+    } catch (error) {
+        console.error('Error toggling publish:', error);
+        if (window.app && window.app.showToast) {
+            window.app.showToast('Error actualizando el post', 'error');
+        }
+    }
+};
+
+// Hook into admin view load
+if (window.app && window.app.loadAdminView) {
+    const originalLoadAdminView = window.app.loadAdminView.bind(window.app);
+    window.app.loadAdminView = async function () {
+        await originalLoadAdminView();
+        // Load blog list after a short delay to ensure admin view is loaded
+        setTimeout(() => {
+            loadAdminBlogList();
+        }, 500);
     };
 }
 

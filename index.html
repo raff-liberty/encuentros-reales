@@ -248,17 +248,29 @@
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Vista: Gestión de Evento (Oferente) -->
-            <div id="view-event-manage" class="view hidden">
-                <div id="event-manage-container">
-                    <!-- Se llenará dinámicamente -->
+                <!-- Gestión de Blog -->
+                <div class="card" style="margin-top: var(--spacing-xl);">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-lg);">
+                        <h2>📝 Gestión de Blog</h2>
+                        <button class="btn btn-primary" onclick="showCreateBlogPost()">➕ Nuevo Post</button>
+                    </div>
+                    <div id="admin-blog-list">
+                        <!-- Se llenará dinámicamente -->
+                    </div>
                 </div>
             </div>
-            <!-- Vista: Panel de Admin -->
+
+            <!-- Duplicado vacío (mantener para compatibilidad) -->
             <div id="view-admin" class="view hidden"></div>
-        </main>
+            <div id="event-manage-container">
+                <!-- Se llenará dinámicamente -->
+            </div>
+    </div>
+    <!-- Vista: Panel de Admin -->
+    <div id="view-admin" class="view hidden"></div>
+    </main>
     </div>
 
     <!-- Modal: Login/Registro (Wizard System) -->
@@ -713,7 +725,7 @@
     <div id="blog-post-modal" class="modal">
         <div class="modal-content" style="max-width: 900px;">
             <div class="modal-header">
-                <button class="close-modal" onclick="app.closeBlogPost()">✕</button>
+                <button class="close-modal" onclick="closeBlogPost()">✕</button>
             </div>
             <div id="blog-post-content" class="blog-post-full">
                 <!-- Contenido del post -->
@@ -769,7 +781,7 @@
     <!-- App Scripts (Legacy DataService can be kept as fallback or removed later) -->
     <script src="data.js"></script>
     <script src="app-new-complete.js?v=4.0"></script>
-    <script src="blog.js?v=1.0"></script>
+    <script src="blog.js?v=1.1"></script>
     <script src="applicants-manager.js?v=1.6"></script>
 </body>
 
