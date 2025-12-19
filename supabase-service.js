@@ -755,6 +755,18 @@ const SupabaseService = {
         // Aquí solo borramos el perfil público.
         return true;
     },
+
+    // Blog: Get all published posts
+    async getAllBlogPosts() {
+        const { data, error } = await supabaseClient
+            .from('blog_posts')
+            .select('*, author:users(username, avatar_url)')
+            .eq('published', true)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        return data;
+    }
 };
 
 window.SupabaseService = SupabaseService;
