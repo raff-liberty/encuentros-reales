@@ -709,6 +709,56 @@
         </div>
     </div>
 
+    <!-- Modal: Ver Post del Blog -->
+    <div id="blog-post-modal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <button class="close-modal" onclick="app.closeBlogPost()">✕</button>
+            </div>
+            <div id="blog-post-content" class="blog-post-full">
+                <!-- Contenido del post -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Crear/Editar Post (Admin) -->
+    <div id="create-blog-post-modal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2 id="blog-form-title">Crear Nuevo Post</h2>
+                <button class="close-modal" onclick="app.closeCreateBlogPost()">✕</button>
+            </div>
+            <form id="blog-post-form" onsubmit="app.handleBlogPostSubmit(event)">
+                <div class="form-group">
+                    <label for="blog-title">Título</label>
+                    <input type="text" id="blog-title" required placeholder="Título del post">
+                </div>
+                <div class="form-group">
+                    <label for="blog-excerpt">Extracto</label>
+                    <textarea id="blog-excerpt" rows="2" placeholder="Breve descripción"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="blog-content">Contenido</label>
+                    <textarea id="blog-content" rows="10" required placeholder="Contenido completo"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="blog-cover-image">URL Imagen</label>
+                    <input type="url" id="blog-cover-image" placeholder="https://ejemplo.com/imagen.jpg">
+                </div>
+                <div class="form-group" style="display: flex; align-items: center; gap: var(--spacing-md);">
+                    <input type="checkbox" id="blog-published" style="width: auto;">
+                    <label for="blog-published" style="margin: 0;">Publicar inmediatamente</label>
+                </div>
+                <input type="hidden" id="blog-post-id">
+                <div style="display: flex; gap: var(--spacing-sm); margin-top: var(--spacing-lg);">
+                    <button type="button" class="btn btn-secondary"
+                        onclick="app.closeCreateBlogPost()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Toast Container -->
     <div id="toast-container" class="toast-container"></div>
 
