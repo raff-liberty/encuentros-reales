@@ -128,6 +128,15 @@ window.closeCreateBlogPost = function () {
 window.handleBlogPostSubmit = async function (event) {
     event.preventDefault();
 
+    // Get current user from Supabase session
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) {
+        if (window.app && window.app.showToast) {
+            window.app.showToast('Debes estar autenticado', 'error');
+        }
+        return;
+    }
+
     const postId = document.getElementById('blog-post-id').value;
     const postData = {
         title: document.getElementById('blog-title').value,
@@ -135,7 +144,7 @@ window.handleBlogPostSubmit = async function (event) {
         content: document.getElementById('blog-content').value,
         cover_image: document.getElementById('blog-cover-image').value || null,
         published: document.getElementById('blog-published').checked,
-        author_id: window.AppState ? window.AppState.currentUser.id : null
+        author_id: user.id
     };
 
     try {
